@@ -1,4 +1,4 @@
-using Turing;
+using Random, Turing;
 
 """
 This test estimates the mean and standard deviation of normally distributed data.
@@ -23,9 +23,12 @@ end
 # Test function
 function univariate_normal_test(N::Int64, M::Int64; μ0::Float64=0.0, σ0::Float64=1.0, λ::Float64=100.0)
 
+    # Set seed for reproducibility
+    Random.seed!(1);
+
     # Memory pre-allocation for output
     simulations_output = Vector{Chains}();
-
+    
     # Loop over replications
     for i=1:M
         
@@ -64,6 +67,9 @@ end
 
 # Test function
 function univariate_regression_test(N::Int64, M::Int64; β0::Float64=0.0, σ0::Float64=1.0, γ::Float64=10.0, λ::Float64=100.0)
+
+    # Set seed for reproducibility
+    Random.seed!(1);
 
     # Memory pre-allocation for output
     simulations_output = Vector{Chains}();
