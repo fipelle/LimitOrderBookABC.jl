@@ -1,4 +1,14 @@
-using Random, Turing;
+using Distributions, Distances, LinearAlgebra, Random, Statistics, StatsPlots, Turing;
+
+struct UnknownContinuousDistribution <: ContinuousUnivariateDistribution
+    summary_statistics_value::Real
+end
+
+# Julia cannot sample from an unknown distribution
+Distributions.rand(rng::AbstractRNG, d::UnknownContinuousDistribution) = nothing;
+
+# While the pdf is also unknown, a good summary statistics should be able to proxy it to some extent - the latter is computed externally within a @model macro, and stored in `d`
+Distributions.logpdf(d::UnknownContinuousDistribution, x::Real) = d.summary_statistics_value;
 
 """
 This test estimates the mean and standard deviation of normally distributed data.
@@ -12,11 +22,34 @@ The data is such that each y_{i} ~ N(μ, σ^2).
 """
 
 # Declare Turing model
-@model function univariate_normal_model(y::Vector{Float64}, λ::Float64)
+@model function univariate_normal_model(y::Vector{Float64}, λ::Float64; no_simulations::Int64=1, percentile::Float64=0.1)
+    
+    # Priors
     μ ~ Normal(0, λ);
     σ ~ TruncatedNormal(0, λ, 0, Inf);
+
+    # Data percentiles
+    percentiles_y = quantile(y, percentile:percentile:1);
+
+    # Initialise summary statistics
+    summary_statistics_value = 0.0;
+
+    # Loop over no_simulations
+    for i=1:no_simulations
+    
+        # Simulated data    
+        y_star = μ .+ σ*randn(length(y));
+
+        # Simulated data percentiles
+        percentiles_y_star = quantile(y_star, percentile:percentile:1);
+
+        # Update summary_statistics_value
+        summary_statistics_value += nrmsd(percentiles_y, percentiles_y_star)/no_simulations;
+    end
+
+    # Loop over the measurements
     for i in axes(y, 1)
-        y[i] ~ Normal(μ, σ);
+        y[i] ~ UnknownContinuousDistribution(-summary_statistics_value);
     end
 end
 
@@ -28,7 +61,7 @@ function univariate_normal_test(N::Int64, M::Int64; μ0::Float64=0.0, σ0::Float
 
     # Memory pre-allocation for output
     simulations_output = Vector{Chains}();
-    
+
     # Loop over replications
     for i=1:M
         
@@ -36,56 +69,12 @@ function univariate_normal_test(N::Int64, M::Int64; μ0::Float64=0.0, σ0::Float
         y_i = μ0 .+ σ0*randn(N);
         
         # Update `simulations_output`
-        push!(simulations_output, sample(univariate_normal_model(y_i, λ), SMC(), 1000));
+        push!(simulations_output, sample(univariate_normal_model(y_i, λ), MH(0.01*Matrix(I, 2, 2)), 50000, discard_initial=25000));
     end
 
     # Return output
     return simulations_output;
 end
 
-"""
-This test uses a simple particle system to estimate a linear regression model.
-
-# Data
-The model of interest is s.t. the data y_{i} ~ N(β*x_{i}, σ^2) where for some predictor x_{i}.
-The predictors are simulated s.t. x_{i} ~ N(0, γ^2) for some γ ≥ 0.
-
-# Priors
-The coefficients have the following priors:
-- β ~ Normal(0, λ^2)
-- σ ~ TruncatedNormal(0, λ^2, 0, Inf)
-"""
-
-# Declare Turing model
-@model function univariate_regression_model(y::Vector{Float64}, x::Vector{Float64}, λ::Float64)
-    β ~ Normal(0, λ);
-    σ ~ TruncatedNormal(0, λ, 0, Inf);
-    for i in axes(y, 1)
-        y[i] ~ Normal(β*x[i], σ);
-    end
-end
-
-# Test function
-function univariate_regression_test(N::Int64, M::Int64; β0::Float64=0.0, σ0::Float64=1.0, γ::Float64=10.0, λ::Float64=100.0)
-
-    # Set seed for reproducibility
-    Random.seed!(1);
-
-    # Memory pre-allocation for output
-    simulations_output = Vector{Chains}();
-
-    # Loop over replications
-    for i=1:M
-        
-        # Current simulated data
-        x_i = γ*randn(N);
-        y_i = β0 .* x_i;
-        y_i .+= σ0*randn(N);
-        
-        # Update `simulations_output`
-        push!(simulations_output, sample(univariate_regression_model(y_i, x_i, λ), SMC(), 1000));
-    end
-
-    # Return output
-    return simulations_output;
-end
+output=univariate_normal_test(200, 1);
+plot(output[1])
