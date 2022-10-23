@@ -41,7 +41,7 @@ The data is such that each y_{i} ~ N(μ, σ^2).
     # Loop over no_simulations
     for i=1:no_simulations
     
-        # Simulated data    
+        # Simulated data
         y_star = μ .+ σ*randn(length(y));
 
         # Simulated data percentiles
@@ -105,8 +105,8 @@ output_3, output_avg_3 = univariate_normal_test(200, 100, noise=2.5);
 output_4, output_avg_4 = univariate_normal_test(200, 100, noise=5.0);
 
 # Select simulation
-p1 = histogram(output_avg_1', labels=["μ" "σ"])
-p2 = histogram(output_avg_2', labels=["μ" "σ"])
-p3 = histogram(output_avg_3', labels=["μ" "σ"])
-p4 = histogram(output_avg_4', labels=["μ" "σ"])
-plot(p1, p2, p3, p4);
+p1 = density(output_avg_1', labels=["μ" "σ"]);
+p2 = density(output_avg_2', labels=["μ" "σ"]);
+p3 = density(output_avg_3', labels=["μ" "σ"]);
+p4 = density(output_avg_4', labels=["μ" "σ"]);
+plot(p1, p2, p3, p4)
