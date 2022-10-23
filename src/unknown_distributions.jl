@@ -22,6 +22,23 @@ end
 """
 UnknownContinuousDistribution(summary_statistics_value::Real) = UnknownContinuousDistribution(summary_statistics_value, -Inf, Inf);
 
+"""
+    UnknownDiscreteDistribution(...)
+
+Datatype representing an unknown discrete distribution (bounded or unbounded).
+"""
+struct UnknownDiscreteDistribution <: DiscreteUnivariateDistribution
+    summary_statistics_value::Real
+    summary_statistics_lower_bound::Real
+    summary_statistics_upper_bound::Real
+end
+
+"""
+    UnknownDiscreteDistribution(summary_statistics_value::Real)
+
+`UnknownDiscreteDistribution` constructor for unbounded discrete distributions.
+"""
+UnknownDiscreteDistribution(summary_statistics_value::Real) = UnknownDiscreteDistribution(summary_statistics_value, -Inf, Inf);
 
 
 #=
@@ -40,5 +57,5 @@ Distributions.rand(rng::AbstractRNG, d::UnknownDistribution) = nothing;
 Distributions.logpdf(d::UnknownDistribution, x::Real) = d.summary_statistics_value;
 
 # Bounds
-Distributions.minimum(d::UnknownDistribution) = d.lower_bound;
-Distributions.maximum(d::UnknownDistribution) = d.upper_bound;
+Distributions.minimum(d::UnknownDistribution) = d.summary_statistics_lower_bound;
+Distributions.maximum(d::UnknownDistribution) = d.summary_statistics_upper_bound;
