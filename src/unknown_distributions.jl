@@ -53,7 +53,7 @@ const UnknownDistribution = Union{UnknownContinuousDistribution, UnknownDiscrete
 # Julia cannot sample from an unknown distribution
 Distributions.rand(rng::AbstractRNG, d::UnknownDistribution) = nothing;
 
-# While the pdf is also unknown, a good summary statistics should be able to proxy it to some extent - the latter is computed externally (e.g., within a Turing model), and stored in `d`
+# While the pdf is also unknown, a good summary statistics should be able to proxy it to some extent - the latter is computed externally (e.g., within a Turing model), stored in `d` and higher values should indicate a better fit
 Distributions.logpdf(d::UnknownDistribution, x::Real) = d.summary_statistics_value;
 
 # Bounds
