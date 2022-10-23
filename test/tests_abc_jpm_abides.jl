@@ -4,7 +4,7 @@ using Main.AbidesMarkets;
 function generate_abides_simulation(build_config_kwargs::NamedTuple; nlevels::Int64=10)
 
     # Build runnable configuration
-    config = AbidesMarkets.build_config("rmsc03", build_config_kwargs);
+    config = AbidesMarkets.build_config("rmsc04", build_config_kwargs);
 
     # Run simulation
     end_state = AbidesMarkets.run(config);
@@ -17,71 +17,21 @@ function generate_abides_simulation(build_config_kwargs::NamedTuple; nlevels::In
 end
 
 """
-    abides_test(
-
-        # Number of simulations
-        M::Int64; 
-
-        # DGP mean and volatility
-        r_bar::Float64 = 100000.0,
-        vol::Float64 = 1e-8,
-        
-        # Further keyword arguments for `AbidesMarkets.build_config`
-        build_config_additional_kwargs::NamedTuple = ()
-    )
+    abides_test(M::Int64; build_config_specifics::NamedTuple = NamedTuple())
 
 Estimate the coefficients used for simulating data through ABIDES-Markets.
 """
-function abides_test(
-
-    # Number of simulations
-    M::Int64; 
-
-    # DGP mean and volatility
-    r_bar::Float64 = 100000.0,
-    vol::Float64 = 1e-8,
-    
-    # Further keyword arguments for `AbidesMarkets.build_config`
-    build_config_additional_kwargs::NamedTuple = ()
-)
+function abides_test(M::Int64; build_config_specifics::NamedTuple = NamedTuple())
 
     # AbidesMarkets.build_config relevant keyword arguments
-    build_config_kwargs = NamedTuple(
-
-        # Fix random seed
+    build_config_kwargs = (
         seed = 0,
-
-        # Value traders have an exact expectation for both the mean and variance of the DGP
-        # -> this identifies them as traders with priviledged (potentially imperfect) information
-        fund_r_bar = r_bar, 
-        val_r_bar = r_bar, 
-        fund_vol = vol, 
-        val_vol = vol, 
-        
-        # Further arguments (if any)
-        build_config_additional_kwargs...,
+        build_config_specifics...,
     );
     
+    # Generate two simulations
     L2_1 = generate_abides_simulation(build_config_kwargs);
     L2_2 = generate_abides_simulation(build_config_kwargs);
 
     return L2_1, L2_2;
 end
-
-#=
-    # Further DGP parameters [true values]
-    fund_kappa::Float64 = 1.67e-16,
-    fund_sigma_s::Float64 = 0.0,
-    fund_megashock_lambda_a::Float64 = 2.77778e-18,
-    fund_megashock_mean::Float64 = 1000.0,
-    fund_megashock_var::Float64 = 50000.0,
-    
-    # Value agents' appraisal of DGP [true values]
-    val_kappa::Float64 = 1.67e-15,
-    val_lambda_a::Float64 = 7e-11,
-
-    # Number of agents per group [true values]
-    num_momentum_agents::Int64 = 25,
-    num_noise_agents::Int64 = 5000,
-    num_value_agents::Int64 = 100,
-=#
