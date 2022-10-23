@@ -1,18 +1,5 @@
-using Distributions, Distances, LinearAlgebra, Random, Statistics, StatsPlots, Turing;
-
-struct UnknownContinuousDistribution <: ContinuousUnivariateDistribution
-    summary_statistics_value::Real
-end
-
-# Julia cannot sample from an unknown distribution
-Distributions.rand(rng::AbstractRNG, d::UnknownContinuousDistribution) = nothing;
-
-# While the pdf is also unknown, a good summary statistics should be able to proxy it to some extent - the latter is computed externally within a @model macro, and stored in `d`
-Distributions.logpdf(d::UnknownContinuousDistribution, x::Real) = d.summary_statistics_value;
-
-# Bounds
-Distributions.minimum(d::UnknownContinuousDistribution) = -Inf;
-Distributions.maximum(d::UnknownContinuousDistribution) = 0;
+using Distances, LinearAlgebra, Random, Statistics, StatsPlots, Turing;
+include("../src/TuringABC.jl"); using Main.TuringABC;
 
 """
 This test estimates the mean and standard deviation of normally distributed data.
@@ -53,7 +40,7 @@ The data is such that each y_{i} ~ N(μ, σ^2).
 
     # Loop over the measurements
     for i in axes(y, 1)
-        y[i] ~ UnknownContinuousDistribution(-summary_statistics_value);
+        y[i] ~ UnknownContinuousDistribution(-summary_statistics_value, -Inf, 0.0);
     end
 end
 
