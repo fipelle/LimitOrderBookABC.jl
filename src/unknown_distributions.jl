@@ -11,8 +11,8 @@ Datatype representing an unknown continuous distribution (bounded or unbounded).
 """
 struct UnknownContinuousDistribution <: ContinuousUnivariateDistribution
     summary_statistics_value::Real
-    summary_statistics_lower_bound::Real
-    summary_statistics_upper_bound::Real
+    summary_statistics_minimum::Real
+    summary_statistics_maximum::Real
 end
 
 """
@@ -29,8 +29,8 @@ Datatype representing an unknown discrete distribution (bounded or unbounded).
 """
 struct UnknownDiscreteDistribution <: DiscreteUnivariateDistribution
     summary_statistics_value::Real
-    summary_statistics_lower_bound::Real
-    summary_statistics_upper_bound::Real
+    summary_statistics_minimum::Real
+    summary_statistics_maximum::Real
 end
 
 """
@@ -57,5 +57,5 @@ Distributions.rand(rng::AbstractRNG, d::UnknownDistribution) = nothing;
 Distributions.logpdf(d::UnknownDistribution, x::Real) = d.summary_statistics_value;
 
 # Bounds
-Distributions.minimum(d::UnknownDistribution) = d.summary_statistics_lower_bound;
-Distributions.maximum(d::UnknownDistribution) = d.summary_statistics_upper_bound;
+Distributions.minimum(d::UnknownDistribution) = d.summary_statistics_minimum;
+Distributions.maximum(d::UnknownDistribution) = d.summary_statistics_maximum;
