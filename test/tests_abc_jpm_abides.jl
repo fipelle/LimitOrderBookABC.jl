@@ -1,5 +1,6 @@
 using MessyTimeSeries;
-using Dates, Distances, LinearAlgebra, Random, Statistics, StatsBase, StatsPlots, Turing;
+using Dates, Distances, LinearAlgebra, Random, Statistics, StatsBase, StatsPlots;
+using AdvancedMH, Turing;
 include("../src/TuringABC.jl"); using Main.TuringABC;
 include("../../AbidesMarkets.jl/src/AbidesMarkets.jl"); using Main.AbidesMarkets;
 
@@ -48,22 +49,21 @@ function L2_weighted_quantiles(X::SnapshotL2)
 end
 
 # Declare Turing model
-@model function abides_model(seed::Int64, y::Vector{Float64}, L2_data::SnapshotL2)
+@model function abides_model(seed::Int64, y::Vector{Float64}, L2_data::SnapshotL2, ::Type{T}=NamedTuple{(:num_momentum_agents, :num_value_agents, :num_noise_agents), Tuple{Int64, Int64, Int64}}) where {T}
     
     # Priors
-    num_momentum_agents ~ Categorical(200);
-    num_value_agents ~ Categorical(200);
-    num_noise_agents ~ Categorical(2_000);
-    
-    # Simulate data
-    build_config_kwargs = (
-        seed=seed, 
-        num_momentum_agents=Int64(num_momentum_agents), 
-        num_value_agents=Int64(num_value_agents),
-        num_noise_agents=Int64(num_noise_agents)
-    );
-    #r_bar=μ, kappa=κ, fund_vol=σ
-    
+    num_momentum_agents ~ DiscreteUniform(1, 200);
+    num_value_agents ~ DiscreteUniform(1, 200);
+    num_noise_agents ~ DiscreteUniform(1, 2_000);
+
+    # Print current trial
+    println("");
+    println("num_momentum_agents=$(num_momentum_agents)")
+    println("num_value_agents=$(num_value_agents)")
+    println("num_noise_agents=$(num_noise_agents)")
+
+    # Get simulated data
+    build_config_kwargs = T( (num_momentum_agents, num_value_agents, num_noise_agents) );
     L2_simulated = generate_abides_simulation(build_config_kwargs);
 
     # Aggregate data
@@ -74,9 +74,8 @@ end
     L2_data_summary_per_period = L2_weighted_quantiles(L2_data_per_minute);
     L2_simulated_summary_per_period = L2_weighted_quantiles(L2_simulated_per_minute);
     summary_statistics_value = median(abs.(L2_data_summary_per_period .- L2_simulated_summary_per_period));
-    println("$(build_config_kwargs), summary=$(summary_statistics_value)");
-    println("");
-
+    println("summary=$(summary_statistics_value)");
+    
     # Target
     y[1] ~ UnknownContinuousDistribution(-summary_statistics_value, -Inf, 0.0);
 end
@@ -89,7 +88,10 @@ function abides_test(M::Int64; build_config_specifics::NamedTuple = NamedTuple()
 
     # Memory pre-allocation for output
     simulations_output = Vector{Chains}();
-    simulations_output_avgs = zeros(2, M);
+    simulations_output_avgs = zeros(3, M);
+
+    # MH tuning parameter
+    MH_const = 10;
 
     @info("Looping over replications");
 
@@ -101,9 +103,17 @@ function abides_test(M::Int64; build_config_specifics::NamedTuple = NamedTuple()
         # Current simulation output
         current_simulation_output = sample(
             abides_model(i, ones(1), L2_data),
-            MH(0.01*Matrix(I, 3, 3)), 
-            50000, 
-            discard_initial=25000
+            #MH(0.1*Matrix(I, 3, 3)), 
+            #=
+            MH(
+                :num_momentum_agents => AdvancedMH.RandomWalkProposal(DiscreteUniform(-MH_const, MH_const)),
+                :num_value_agents => AdvancedMH.RandomWalkProposal(DiscreteUniform(-MH_const, MH_const)),
+                :num_noise_agents => AdvancedMH.RandomWalkProposal(DiscreteUniform(-MH_const, MH_const))
+            ),
+            =#
+            SMC(), 
+            1000, 
+            #discard_initial=1500
         );
 
         # Update `simulations_output`
