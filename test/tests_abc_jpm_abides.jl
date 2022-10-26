@@ -41,7 +41,12 @@ function L2_weighted_quantiles(X::SnapshotL2)
         q_index = @view q_index_raw[not_missing];
 
         # Compute weighted quantiles
-        summary_per_period[:, index] = StatsBase.quantile(p_index, Weights(q_index/sum(q_index)), 0.25:0.25:1.0);
+        if min(length(p_index), length(q_index)) > 0
+            summary_per_period[:, index] = StatsBase.quantile(p_index, Weights(q_index/sum(q_index)), 0.25:0.25:1.0);
+        else
+            summary_per_period .= -Inf;
+            break;
+        end
     end
 
     # Return output
@@ -58,24 +63,31 @@ end
 
     # Print current trial
     println("");
-    println("num_momentum_agents=$(num_momentum_agents)")
-    println("num_value_agents=$(num_value_agents)")
-    println("num_noise_agents=$(num_noise_agents)")
+    println("Trial Parameters:");
+    println("- num_momentum_agents=$(num_momentum_agents)");
+    println("- num_value_agents=$(num_value_agents)");
+    println("- num_noise_agents=$(num_noise_agents)");
 
     # Get simulated data
-    build_config_kwargs = T( (num_momentum_agents, num_value_agents, num_noise_agents) );
+    println("Simulate:");
+    build_config_kwargs = T((num_momentum_agents, num_value_agents, num_noise_agents));
     L2_simulated = generate_abides_simulation(build_config_kwargs);
 
     # Aggregate data
+    println("Aggregate L2 data...");
     L2_data_per_minute = aggregate_L2_snapshot_eop(L2_data, Minute(1));
     L2_simulated_per_minute = aggregate_L2_snapshot_eop(L2_simulated, Minute(1));
 
     # Compute summary statistics
+    println("Compute weighted quantiles...");
     L2_data_summary_per_period = L2_weighted_quantiles(L2_data_per_minute);
     L2_simulated_summary_per_period = L2_weighted_quantiles(L2_simulated_per_minute);
-    summary_statistics_value = median(abs.(L2_data_summary_per_period .- L2_simulated_summary_per_period));
-    println("summary=$(summary_statistics_value)");
-    
+
+    println("Compute final summary statistics...");
+    summary_per_period = cityblock.(L2_data_summary_per_period, L2_simulated_summary_per_period); #abs.(abs.(L2_data_summary_per_period ./ L2_simulated_summary_per_period) .- 1);
+    summary_statistics_value = median(summary_per_period);
+    println("- Summary statistics=$(summary_statistics_value)");
+
     # Target
     y[1] ~ UnknownContinuousDistribution(-summary_statistics_value, -Inf, 0.0);
 end
