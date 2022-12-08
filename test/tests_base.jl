@@ -1,4 +1,4 @@
-using Random, Turing;
+using LinearAlgebra, Random, Turing;
 
 """
 This test estimates the mean and standard deviation of normally distributed data.
@@ -8,20 +8,20 @@ The data is such that each y_{i} ~ N(μ, σ^2).
 
 # Priors
 - μ ~ Normal(0, λ^2)
-- σ ~ TruncatedNormal(0, λ^2, 0, Inf)
+- σ ~ InverseGamma(3, 1)
 """
 
 # Declare Turing model
-@model function univariate_normal_model(y::Vector{Float64}, λ::Float64)
+@model function univariate_normal_model(y, λ)
     μ ~ Normal(0, λ);
-    σ ~ TruncatedNormal(0, λ, 0, Inf);
+    σ ~ InverseGamma(3, 1);
     for i in axes(y, 1)
         y[i] ~ Normal(μ, σ);
     end
 end
 
 # Test function
-function univariate_normal_test(N::Int64, M::Int64; μ0::Float64=0.0, σ0::Float64=1.0, λ::Float64=100.0)
+function univariate_normal_test(N::Int64, M::Int64; μ0::Float64=0.0, σ0::Float64=1.0, λ::Float64=100.0, noise::Float64=0.0)
 
     # Set seed for reproducibility
     Random.seed!(1);
@@ -31,12 +31,15 @@ function univariate_normal_test(N::Int64, M::Int64; μ0::Float64=0.0, σ0::Float
     
     # Loop over replications
     for i=1:M
-        
+
         # Current simulated data
         y_i = μ0 .+ σ0*randn(N);
-        
+
+        # Initial value for the model parameters
+        init_θ = [0; 1/2] + noise*[randn(); abs(randn())];
+
         # Update `simulations_output`
-        push!(simulations_output, sample(univariate_normal_model(y_i, λ), SMC(), 1000));
+        push!(simulations_output, sample(univariate_normal_model(y_i, λ), SMC(), 1000, init_params=init_θ));
     end
 
     # Return output
