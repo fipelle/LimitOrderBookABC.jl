@@ -1,7 +1,7 @@
 struct ParticleSystem
 
     # Specifics
-    is_iid::Bool
+    markov_order::Int64
     
     # Dimensions
     num_particles::Int64

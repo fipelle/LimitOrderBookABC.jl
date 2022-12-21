@@ -1,4 +1,11 @@
 """
+    effective_sample_size(system::ParticleSystem)
+
+Return ESS of the weights.
+"""
+effective_sample_size(system::ParticleSystem) = 1/sum(system.weights.^2);
+
+"""
     resample!(system::ParticleSystem)
 
 Resampling step.
@@ -46,34 +53,41 @@ Iterated batch importance sampling algorithms: iteration for new batch of data.
 - Steps 1-3 in Chopin (2002, Section 4.1).
 """
 function ibis_iteration(
-    batch::SubArray{Float64},
+    data::Vector{Float64},
+    batch_length::Int64,
     system::ParticleSystem;
-    batch_lags::Union{Vector{SubArray{Float64}}, Nothing}=nothing
 )
-    
-    # Step 1: Update the weights
+
+    # Generate view on current batch
+    batch = @view data[end-batch_length+1:end];
+
+    # Update the weights
     for i=1:system.num_particles
 
         # Loop over each observation in `batch`
         for (j, observation) in enumerate(batch)
-                
+            
             # i.i.d.
-            if system.is_iid
+            if system.markov_order == 0
                 system.weights[i] *= system.likelihood(observation, view(system.particles, :, i));
             
-            # Markov of order `m`
+            # Markov of order > 0
             else
-                system.weights[i] *= system.likelihood(observation, batch_lags[j], view(system.particles, :, i));
+                batch_lags = @view data[end-batch_length+j-system.markov_order:end-batch_length+j-1];
+                system.weights[i] *= system.likelihood(observation, batch_lags, view(system.particles, :, i));
             end
         end
     end
 
     # Normalise the weights
     system.weights ./= sum(system.weights);
-    
-    # Step 2: resample
-    resample!(system);
 
-    # Step 3: move
-    move!(system);
+    if effective_sample_size(system) < 0.5
+
+        # Resample the particles and reset the weights
+        resample!(system);
+        
+        # Rejuvenate the particles
+        move!(system);
+    end
 end
