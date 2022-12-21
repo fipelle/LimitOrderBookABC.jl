@@ -32,16 +32,31 @@ function resample!(system::ParticleSystem)
 end
 
 """
-    move!(system::ParticleSystem)
+    move!(
+        data::Vector{Float64},
+        system::ParticleSystem; 
+        ε::Float64=0.1
+    )
 
-Rejuvinating step.
+Rejuvinating step based on the unadjusted Langevin algorithm (ULA).
+
+# References
+- Roberts and Tweedie (1996, 1.4.1)
 """
-function move!(system::ParticleSystem)
+function move!(
+    data::Vector{Float64},
+    system::ParticleSystem; 
+    ε::Float64=0.1
+)
 
+    for i=1:system.num_particles
+        system.particles[i] += ε/2*system.gradient(data, system.particles[i]);
+        system.particles[i] += sqrt(ε)*randn();
+    end
 end
 
 """
-    ibis_iteration(
+    ibis_iteration!(
         batch::SubArray{Float64},
         system::ParticleSystem;
         batch_lags::Union{Vector{SubArray{Float64}}, Nothing}=nothing
@@ -50,9 +65,10 @@ end
 Iterated batch importance sampling algorithms: iteration for new batch of data.
 
 # References
-- Steps 1-3 in Chopin (2002, Section 4.1).
+- Chopin (2002, Section 4.1)
+- Roberts and Tweedie (1996, 1.4.1)
 """
-function ibis_iteration(
+function ibis_iteration!(
     data::Vector{Float64},
     batch_length::Int64,
     system::ParticleSystem;
@@ -88,6 +104,6 @@ function ibis_iteration(
         resample!(system);
         
         # Rejuvenate the particles
-        move!(system);
+        move!(data, system);
     end
 end

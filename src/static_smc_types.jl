@@ -9,7 +9,8 @@ struct ParticleSystem
     # Densities
     priors::Vector{ContinuousDistribution}
     likelihood::Function
-
+    gradient::Function
+    
     # Particles and weights
     particles::Matrix{Float64}
     weights::Matrix{Float64}
