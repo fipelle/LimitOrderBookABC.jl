@@ -76,6 +76,7 @@ function ibis_iteration!(
 
     # Generate view on current batch
     batch = @view data[end-batch_length+1:end];
+    @infiltrate
 
     # Update the weights
     for i=1:system.num_particles
@@ -83,6 +84,8 @@ function ibis_iteration!(
         # Loop over each observation in `batch`
         for (j, observation) in enumerate(batch)
             
+            @infiltrate
+
             # i.i.d.
             if system.markov_order == 0
                 system.weights[i] *= system.likelihood(observation, view(system.particles, :, i));
@@ -92,18 +95,62 @@ function ibis_iteration!(
                 batch_lags = @view data[end-batch_length+j-system.markov_order:end-batch_length+j-1];
                 system.weights[i] *= system.likelihood(observation, batch_lags, view(system.particles, :, i));
             end
+
+            @infiltrate
         end
     end
+
+    @infiltrate
 
     # Normalise the weights
     system.weights ./= sum(system.weights);
 
+    @infiltrate
+
     if effective_sample_size(system) < 0.5
+
+        @infiltrate
 
         # Resample the particles and reset the weights
         resample!(system);
         
         # Rejuvenate the particles
         move!(data, system);
+
+        @infiltrate
+    end
+end
+
+"""
+    sample!(
+        full_data::Vector{Float64},
+        batch_length::Int64,
+        system::ParticleSystem;
+    )
+
+
+"""
+function sample!(
+    full_data::Vector{Float64},
+    batch_length::Int64,
+    system::ParticleSystem;
+)
+    
+    # Initialise counter
+    counter = batch_length;
+
+    # Loop over time
+    for t=1:fld(length(full_data), batch_length)
+
+        # Current data
+        data = full_data[1:counter];
+        
+        @infiltrate
+        
+        # Iterated batch importance sampling round
+        ibis_iteration!(data, batch_length, system);
+        
+        # Update counter
+        counter += batch_length;
     end
 end
