@@ -22,7 +22,7 @@ function resample!(system::ParticleSystem)
     resampled_particles = [];
     for (index, value) in enumerate(mn_draw)
         for k=1:value
-            push!(resampled_particles, system.particles[index]);
+            push!(resampled_particles, system.particles[:, index]);
         end
     end
 
@@ -50,8 +50,10 @@ function move!(
 )
 
     for i=1:system.num_particles
-        system.particles[i] += ε/2*system.gradient(data, system.particles[i]);
-        system.particles[i] += sqrt(ε)*randn();
+        @infiltrate
+        system.particles[:, i] += ε/2*system.gradient(data, view(system.particles, :, i));
+        system.particles[:, i] += sqrt(ε)*randn();
+        @infiltrate
     end
 end
 
