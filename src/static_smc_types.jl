@@ -1,4 +1,4 @@
-struct ParticleSystem
+mutable struct ParticleSystem
 
     # Specifics
     markov_order::Int64
