@@ -21,5 +21,5 @@ mutable struct ParticleSystem
     particles::Matrix{Float64}
     weights::Vector{Float64}
     particles_history::Vector{Matrix{Float64}}
-    weights_history::Vector{Matrix{Float64}}
+    weights_history::Vector{Vector{Float64}}
 end

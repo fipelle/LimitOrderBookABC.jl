@@ -2,8 +2,13 @@ include("../src/StaticSMC.jl");
 using Main.StaticSMC;
 using Distributions, Random;
 
-test_univariate_normal_smc_likelihood(observation::Float64, parameters::AbstractVector{Float64}) = pdf(Normal(parameters[1], parameters[2]^2), observation);
-test_univariate_normal_smc_gradient(observation::Float64, parameters::AbstractVector{Float64}) = zeros(length(parameters));
+test_univariate_normal_smc_likelihood(observation::Float64, parameters::AbstractVector{Float64}) = logpdf(Normal(parameters[1], parameters[2]), observation);
+function test_univariate_normal_smc_gradient(observation::Float64, parameters::AbstractVector{Float64})
+    return [
+        -(parameters[1]-observation)/parameters[2];
+        ((observation-parameters[1])^2 - parameters[2])/(2*parameters[2]^2)
+    ]
+end
 
 """
 This test estimates the mean and standard deviation of normally distributed data with a static SMC.
@@ -13,7 +18,7 @@ The data is such that each y_{i} ~ N(μ, σ^2) for i=1, ..., T.
 
 # Priors
 - μ ~ Normal(0, λ^2)
-- σ ~ InverseGamma(3, 1)
+- σ^2 ~ InverseGamma(3, 1)
 """
 function test_univariate_normal_smc(N::Int64, M::Int64, num_particles::Int64; μ0::Float64=0.0, σ0::Float64=1.0, λ::Float64=10.0)
 

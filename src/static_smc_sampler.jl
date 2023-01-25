@@ -101,8 +101,6 @@ function ibis_iteration!(
     # Normalise the weights
     system.weights ./= sum(system.weights);
 
-    @infiltrate
-
     # Resample and move
     if effective_sample_size(system) < system.num_particles/2
 
@@ -147,14 +145,10 @@ function sample!(
 
         # Current data
         data = full_data[1:counter];
-          
-        @infiltrate
-
+        
         # Iterated batch importance sampling round
         ibis_iteration!(data, batch_length, system);
         
-        @infiltrate
-
         # Update counter
         counter += batch_length;
     end
