@@ -1,3 +1,8 @@
+"""
+    ParticleSystem(...)
+
+`ParticleSystem` type. The particles are structured to have rows equal to the number of parameters.
+"""
 mutable struct ParticleSystem
 
     # Specifics

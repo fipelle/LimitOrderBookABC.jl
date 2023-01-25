@@ -17,18 +17,19 @@ function resample!(system::ParticleSystem)
 
     # Draw a sample from `mn`
     mn_draw = rand(mn);
-    
+        
     # Resample the particles
-    resampled_particles = [];
+    counter = 1; # 1 is correct for this counter
+    old_particles = copy(system.particles);
     for (index, value) in enumerate(mn_draw)
         for k=1:value
-            push!(resampled_particles, system.particles[:, index]);
+            system.particles[:, counter] = old_particles[:, index];
+            counter += 1;
         end
     end
 
-    # Update system
-    copyto!(system.particles, resampled_particles);
-    copyto!(system.weights, ones(system.num_particles) / system.num_particles);
+    # Reset weights
+    system.weights = ones(system.num_particles) / system.num_particles;
 end
 
 """
@@ -78,7 +79,6 @@ function ibis_iteration!(
 
     # Generate view on current batch
     batch = @view data[end-batch_length+1:end];
-    @infiltrate
 
     # Update the weights
     for i=1:system.num_particles
@@ -86,36 +86,34 @@ function ibis_iteration!(
         # Loop over each observation in `batch`
         for (j, observation) in enumerate(batch)
             
-            @infiltrate
-
             # i.i.d.
             if system.markov_order == 0
                 system.weights[i] *= system.likelihood(observation, view(system.particles, :, i));
             
             # Markov of order `system.markov_order` > 0
             else
+                @infiltrate
                 batch_lags = @view data[end-batch_length+j-system.markov_order:end-batch_length+j-1];
                 system.weights[i] *= system.likelihood(observation, batch_lags, view(system.particles, :, i));
+                @infiltrate
             end
-
-            @infiltrate
         end
     end
-
-    @infiltrate
 
     # Normalise the weights
     system.weights ./= sum(system.weights);
 
     @infiltrate
 
-    if effective_sample_size(system) < 0.5
+    if effective_sample_size(system) < system.num_particles/2
 
         @infiltrate
 
         # Resample the particles and reset the weights
         resample!(system);
         
+        @infiltrate
+
         # Rejuvenate the particles
         move!(data, system);
 

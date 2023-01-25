@@ -15,7 +15,7 @@ The data is such that each y_{i} ~ N(μ, σ^2) for i=1, ..., T.
 - μ ~ Normal(0, λ^2)
 - σ ~ InverseGamma(3, 1)
 """
-function test_univariate_normal_smc(N::Int64, M::Int64, num_particles::Int64; μ0::Float64=0.0, σ0::Float64=1.0, λ::Float64=100.0)
+function test_univariate_normal_smc(N::Int64, M::Int64, num_particles::Int64; μ0::Float64=0.0, σ0::Float64=1.0, λ::Float64=10.0)
 
     # Set seed for reproducibility
     Random.seed!(1);
@@ -46,7 +46,7 @@ function test_univariate_normal_smc(N::Int64, M::Int64, num_particles::Int64; μ
             Vector{Matrix{Float64}}(),
             Vector{Matrix{Float64}}()
         );
-
+        
         StaticSMC.sample!(y_i, 1, system);
         push!(simulations_output, system);
     end
