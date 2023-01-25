@@ -33,8 +33,9 @@ function test_univariate_normal_smc(N::Int64, M::Int64, num_particles::Int64; μ
         # Setup particle system
         system = ParticleSystem(
             0,
+            2,
             num_particles,
-        
+            
             # Densities
             [Normal(0, λ^2); InverseGamma(3, 1)],
             test_univariate_normal_smc_likelihood,

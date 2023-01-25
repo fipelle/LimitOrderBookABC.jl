@@ -9,8 +9,9 @@ mutable struct ParticleSystem
     markov_order::Int64
     
     # Dimensions
+    num_parameters::Int64
     num_particles::Int64
-
+    
     # Densities
     priors::Vector{Distribution{Univariate, Continuous}}
     likelihood::Function

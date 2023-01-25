@@ -13,7 +13,7 @@ Resampling step.
 function resample!(system::ParticleSystem)
 
     # Create a Multinomial distribution using the weights as probabilities
-    mn = Multinomial(length(system.weights), system.weights);
+    mn = Multinomial(system.num_particles, system.weights);
 
     # Draw a sample from `mn`
     mn_draw = rand(mn);
@@ -34,7 +34,7 @@ end
 
 """
     move!(
-        data::Vector{Float64},
+        last_datapoint::Float64,
         system::ParticleSystem; 
         ε::Float64=0.1
     )
@@ -45,16 +45,14 @@ Rejuvinating step based on the unadjusted Langevin algorithm (ULA).
 - Roberts and Tweedie (1996, 1.4.1)
 """
 function move!(
-    data::Vector{Float64},
+    last_datapoint::Float64,
     system::ParticleSystem; 
     ε::Float64=0.1
 )
 
     for i=1:system.num_particles
-        @infiltrate
-        system.particles[:, i] += ε/2*system.gradient(data, view(system.particles, :, i));
-        system.particles[:, i] += sqrt(ε)*randn();
-        @infiltrate
+        system.particles[:, i] .+= ε/2*system.gradient(last_datapoint, view(system.particles, :, i));
+        system.particles[:, i] .+= sqrt(ε)*randn(system.num_parameters);
     end
 end
 
@@ -105,6 +103,7 @@ function ibis_iteration!(
 
     @infiltrate
 
+    # Resample and move
     if effective_sample_size(system) < system.num_particles/2
 
         @infiltrate
@@ -115,10 +114,14 @@ function ibis_iteration!(
         @infiltrate
 
         # Rejuvenate the particles
-        move!(data, system);
+        move!(data[end], system);
 
         @infiltrate
     end
+
+    # Update history
+    push!(system.particles_history, copy(system.particles));
+    push!(system.weights_history, copy(system.weights));
 end
 
 """
@@ -144,12 +147,14 @@ function sample!(
 
         # Current data
         data = full_data[1:counter];
-        
+          
         @infiltrate
-        
+
         # Iterated batch importance sampling round
         ibis_iteration!(data, batch_length, system);
         
+        @infiltrate
+
         # Update counter
         counter += batch_length;
     end
