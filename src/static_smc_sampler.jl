@@ -86,35 +86,31 @@ function ibis_iteration!(
             
             # i.i.d.
             if system.markov_order == 0
-                system.weights[i] *= system.likelihood(observation, view(system.particles, :, i));
+                system.weights[i] += system.likelihood(observation, view(system.particles, :, i));
             
             # Markov of order `system.markov_order` > 0
             else
                 @infiltrate
                 batch_lags = @view data[end-batch_length+j-system.markov_order:end-batch_length+j-1];
-                system.weights[i] *= system.likelihood(observation, batch_lags, view(system.particles, :, i));
+                system.weights[i] += system.likelihood(observation, batch_lags, view(system.particles, :, i));
                 @infiltrate
             end
         end
     end
 
     # Normalise the weights
+    offset = maximum(system.weights);
+    system.weights = exp.(system.weights .- offset);
     system.weights ./= sum(system.weights);
 
     # Resample and move
     if effective_sample_size(system) < system.num_particles/2
-
-        @infiltrate
-
+        
         # Resample the particles and reset the weights
         resample!(system);
         
-        @infiltrate
-
         # Rejuvenate the particles
         move!(data[end], system);
-
-        @infiltrate
     end
 
     # Update history
