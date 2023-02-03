@@ -2,16 +2,16 @@ include("../src/StaticSMC.jl");
 using Main.StaticSMC;
 using Distributions, MessyTimeSeries, Random;
 
-function test_univariate_normal_smc_likelihood(observation::Float64, parameters::AbstractVector{Float64})
+function test_univariate_normal_smc_log_likelihood(observation::Float64, parameters::AbstractVector{Float64})
     μ = parameters[1];
-    σ = get_bounded_logit(parameters[2], 0.0, 10000.0);
+    σ = get_bounded_logit(parameters[2], 0.0, 1000.0);
     return logpdf(Normal(μ, σ), observation);
 end
 
-function test_univariate_normal_smc_gradient(observation::Float64, parameters::AbstractVector{Float64})
+function test_univariate_normal_smc_log_gradient(observation::Float64, parameters::AbstractVector{Float64})
     
     μ = parameters[1];
-    σ = get_bounded_logit(parameters[2], 0.0, 10000.0);
+    σ = get_bounded_logit(parameters[2], 0.0, 1000.0);
 
     return [
         (observation-μ)/(σ^2);
@@ -52,11 +52,12 @@ function test_univariate_normal_smc(N::Int64, M::Int64, num_particles::Int64; μ
             
             # Densities
             [Normal(0, λ^2); InverseGamma(3, 1)],
-            test_univariate_normal_smc_likelihood,
-            test_univariate_normal_smc_gradient,
+            test_univariate_normal_smc_log_likelihood,
+            test_univariate_normal_smc_log_gradient,
             
             # Particles and weights
             [rand(Normal(0, λ^2), 1, num_particles); rand(InverseGamma(3, 1), 1, num_particles)],
+            log.(ones(num_particles) / num_particles),
             ones(num_particles) / num_particles,
             Vector{Matrix{Float64}}(),
             Vector{Matrix{Float64}}()
@@ -69,4 +70,4 @@ function test_univariate_normal_smc(N::Int64, M::Int64, num_particles::Int64; μ
     return simulations_output;
 end
 
-simulation_output = test_univariate_normal_smc(100, 50, 1000);
+simulation_output = test_univariate_normal_smc(100, 1, 1000);
