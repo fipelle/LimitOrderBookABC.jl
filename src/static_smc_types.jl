@@ -14,11 +14,12 @@ mutable struct ParticleSystem
     
     # Densities
     priors::Vector{Distribution{Univariate, Continuous}}
-    likelihood::Function
-    gradient::Function
+    log_likelihood::Function
+    log_gradient::Function
     
     # Particles and weights
     particles::Matrix{Float64}
+    log_weights::Vector{Float64}
     weights::Vector{Float64}
     particles_history::Vector{Matrix{Float64}}
     weights_history::Vector{Vector{Float64}}

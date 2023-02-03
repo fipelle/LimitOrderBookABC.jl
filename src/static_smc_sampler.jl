@@ -17,7 +17,7 @@ function resample!(system::ParticleSystem)
 
     # Draw a sample from `mn`
     mn_draw = rand(mn);
-        
+
     # Resample the particles
     counter = 1; # 1 is correct for this counter
     old_particles = copy(system.particles);
@@ -30,6 +30,7 @@ function resample!(system::ParticleSystem)
 
     # Reset weights
     system.weights = ones(system.num_particles) / system.num_particles;
+    system.log_weights = log.(system.weights);
 end
 
 """
@@ -51,7 +52,7 @@ function move!(
 )
 
     for i=1:system.num_particles
-        system.particles[:, i] .+= ε/2*system.gradient(last_datapoint, view(system.particles, :, i));
+        system.particles[:, i] .+= ε/2*system.log_gradient(last_datapoint, view(system.particles, :, i));
         system.particles[:, i] .+= sqrt(ε)*randn(system.num_parameters);
     end
 end
@@ -86,31 +87,35 @@ function ibis_iteration!(
             
             # i.i.d.
             if system.markov_order == 0
-                system.weights[i] += system.likelihood(observation, view(system.particles, :, i));
+                system.log_weights[i] += system.log_likelihood(observation, view(system.particles, :, i));
             
             # Markov of order `system.markov_order` > 0
             else
                 @infiltrate
                 batch_lags = @view data[end-batch_length+j-system.markov_order:end-batch_length+j-1];
-                system.weights[i] += system.likelihood(observation, batch_lags, view(system.particles, :, i));
+                system.log_weights[i] += system.log_likelihood(observation, batch_lags, view(system.particles, :, i));
                 @infiltrate
             end
         end
     end
 
     # Normalise the weights
-    offset = maximum(system.weights);
-    system.weights = exp.(system.weights .- offset);
+    offset = maximum(system.log_weights);
+    system.weights = exp.(system.log_weights .- offset);
     system.weights ./= sum(system.weights);
 
     # Resample and move
     if effective_sample_size(system) < system.num_particles/2
-        
+
         # Resample the particles and reset the weights
         resample!(system);
         
         # Rejuvenate the particles
         move!(data[end], system);
+    
+    # Update `system.log_weights` to reflect normalisation
+    else
+        system.log_weights = log.(system.weights);
     end
 
     # Update history
