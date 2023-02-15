@@ -2,13 +2,13 @@ include("../src/StaticSMC.jl");
 using Main.StaticSMC;
 using Distributions, MessyTimeSeries, Random;
 
-function test_univariate_normal_smc_log_likelihood(observation::Float64, parameters::AbstractVector{Float64})
+function test_univariate_normal_smc_log_abc_objective(observation::Float64, parameters::AbstractVector{Float64})
     μ = parameters[1];
     σ² = get_bounded_logit(parameters[2], 0.0, 1000.0);
     return logpdf(Normal(μ, sqrt(σ²)), observation);
 end
 
-function test_univariate_normal_smc_log_gradient(observation::Float64, parameters::AbstractVector{Float64})
+function test_univariate_normal_smc_log_abc_gradient(observation::Float64, parameters::AbstractVector{Float64})
     
     μ = parameters[1];
     σ² = get_bounded_logit(parameters[2], 0.0, 1000.0);
@@ -46,14 +46,14 @@ function test_univariate_normal_smc(N::Int64, M::Int64, num_particles::Int64; μ
         
         # Setup particle system
         system = ParticleSystem(
-            0,
+            nothing,
             2,
             num_particles,
             
             # Densities
             [Normal(0, λ^2); InverseGamma(3, 1)],
-            test_univariate_normal_smc_log_likelihood,
-            test_univariate_normal_smc_log_gradient,
+            test_univariate_normal_smc_log_abc_objective,
+            test_univariate_normal_smc_log_abc_gradient,
             
             # Particles and weights
             [rand(Normal(0, λ^2), 1, num_particles); rand(InverseGamma(3, 1), 1, num_particles)],
