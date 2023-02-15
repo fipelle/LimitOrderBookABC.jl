@@ -35,9 +35,9 @@ end
 
 """
     move!(
-        last_datapoint::Float64,
-        system::ParticleSystem; 
-        ε::Float64=0.1
+        last_datapoint :: Float64,
+        system         :: ParticleSystem; 
+        ε              :: Float64=0.1
     )
 
 Rejuvinating step based on the unadjusted Langevin algorithm (ULA).
@@ -46,9 +46,9 @@ Rejuvinating step based on the unadjusted Langevin algorithm (ULA).
 - Roberts and Tweedie (1996, 1.4.1)
 """
 function move!(
-    last_datapoint::Float64,
-    system::ParticleSystem; 
-    ε::Float64=0.1
+    last_datapoint :: Float64,
+    system         :: ParticleSystem; 
+    ε              :: Float64=0.1
 )
 
     for i=1:system.num_particles
@@ -169,17 +169,16 @@ end
 
 """
     sample!(
-        full_data::Vector{Float64},
-        batch_length::Int64,
-        system::ParticleSystem;
+        full_data    :: Vector{Float64},
+        batch_length :: Int64,
+        system       :: ParticleSystem;
     )
-
 
 """
 function sample!(
-    full_data::Vector{Float64},
-    batch_length::Int64,
-    system::ParticleSystem;
+    full_data    :: Vector{Float64},
+    batch_length :: Int64,
+    system       :: ParticleSystem;
 )
     
     # Initialise counter

@@ -6,21 +6,21 @@
 mutable struct ParticleSystem
 
     # Specifics
-    markov_order::Union{Int64, Nothing}
+    markov_order      :: Union{Int64, Nothing}
     
     # Dimensions
-    num_parameters::Int64
-    num_particles::Int64
+    num_parameters    :: Int64
+    num_particles     :: Int64
     
     # Densities
-    priors::Vector{Distribution{Univariate, Continuous}}
-    log_objective::Function
-    log_gradient::Function
+    priors            :: Vector{Distribution{Univariate, Continuous}}
+    log_objective     :: Function
+    log_gradient      :: Function
     
     # Particles and weights
-    particles::Matrix{Float64}
-    log_weights::Vector{Float64}
-    weights::Vector{Float64}
-    particles_history::Vector{Matrix{Float64}}
-    weights_history::Vector{Vector{Float64}}
+    particles         :: Matrix{Float64}
+    log_weights       :: Vector{Float64}
+    weights           :: Vector{Float64}
+    particles_history :: Vector{Matrix{Float64}}
+    weights_history   :: Vector{Vector{Float64}}
 end
