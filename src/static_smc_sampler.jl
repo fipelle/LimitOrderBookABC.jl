@@ -35,9 +35,9 @@ end
 
 """
     move!(
-        last_datapoint :: Float64,
-        system         :: ParticleSystem; 
-        ε              :: Float64=0.1
+        batch  :: SubArray{Float64}, 
+        system :: ParticleSystem; 
+        ε      :: Float64=0.1
     )
 
 Rejuvinating step based on the unadjusted Langevin algorithm (ULA).
@@ -46,13 +46,19 @@ Rejuvinating step based on the unadjusted Langevin algorithm (ULA).
 - Roberts and Tweedie (1996, 1.4.1)
 """
 function move!(
-    last_datapoint :: Float64,
-    system         :: ParticleSystem; 
-    ε              :: Float64=0.1
+    batch  :: SubArray{Float64}, 
+    system :: ParticleSystem; 
+    ε      :: Float64=0.1
 )
 
     for i=1:system.num_particles
-        system.particles[:, i] .+= ε/2*system.log_gradient(last_datapoint, view(system.particles, :, i));
+        
+        # Loop over batch
+        for observation in batch
+            system.particles[:, i] .+= ε/2*system.log_gradient(observation, view(system.particles, :, i));
+        end
+        
+        # Random perturbation
         system.particles[:, i] .+= sqrt(ε)*randn(system.num_parameters);
     end
 end
@@ -155,7 +161,7 @@ function ibis_iteration!(
         resample!(system);
         
         # Rejuvenate the particles
-        move!(data[end], system);
+        move!(batch, system);
     
     # Update `system.log_weights` to reflect normalisation
     else
