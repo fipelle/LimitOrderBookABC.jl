@@ -58,28 +58,23 @@ function move!(
 end
 
 """
-    ibis_iteration!(
-        batch::SubArray{Float64},
-        system::ParticleSystem;
-        batch_lags::Union{Vector{SubArray{Float64}}, Nothing}=nothing
+    update_weights!(
+        batch                :: SubArray{Float64}, 
+        batch_length         :: Int64, 
+        system               :: ParticleSystem, 
+        barrier_markov_order :: Int64
     )
 
-Iterated batch importance sampling algorithms: iteration for new batch of data.
-
-# References
-- Chopin (2002, Section 4.1)
-- Roberts and Tweedie (1996, 1.4.1)
+Update weights within ibis iteration as in Chopin (2002).
 """
-function ibis_iteration!(
-    data::Vector{Float64},
-    batch_length::Int64,
-    system::ParticleSystem;
+function update_weights!(
+    batch                :: SubArray{Float64}, 
+    batch_length         :: Int64, 
+    system               :: ParticleSystem, 
+    barrier_markov_order :: Int64
 )
 
-    # Generate view on current batch
-    batch = @view data[end-batch_length+1:end];
-
-    # Update the weights
+    # Loop over each particle
     for i=1:system.num_particles
 
         # Loop over each observation in `batch`
@@ -98,6 +93,55 @@ function ibis_iteration!(
             end
         end
     end
+end
+
+"""
+    update_weights!(
+        batch                :: SubArray{Float64}, 
+        batch_length         :: Int64, 
+        system               :: ParticleSystem, 
+        barrier_markov_order :: Int64
+    )
+
+Update weights within ibis iteration through Approximate Bayesian Computation (ABC).
+"""
+function update_weights!(
+    batch                :: SubArray{Float64}, 
+    batch_length         :: Int64, 
+    system               :: ParticleSystem, 
+    barrier_markov_order :: Nothing
+)
+
+    # Loop over each particle
+    for i=1:system.num_particles
+        system.log_weights[i] += system.log_objective(batch, view(system.particles, :, i));
+    end
+end
+
+"""
+    ibis_iteration!(
+        data         :: Vector{Float64},
+        batch_length :: Int64,
+        system       :: ParticleSystem
+    )
+
+Iterated batch importance sampling algorithms: iteration for new batch of data.
+
+# References
+- Chopin (2002, Section 4.1)
+- Roberts and Tweedie (1996, 1.4.1)
+"""
+function ibis_iteration!(
+    data         :: Vector{Float64},
+    batch_length :: Int64,
+    system       :: ParticleSystem
+)
+
+    # Generate view on current batch
+    batch = @view data[end-batch_length+1:end];
+
+    # Update the weights
+    update_weights!(batch, batch_length, system, system.markov_order);
 
     # Normalise the weights
     offset = maximum(system.log_weights);
