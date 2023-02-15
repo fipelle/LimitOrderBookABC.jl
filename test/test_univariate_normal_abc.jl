@@ -2,10 +2,28 @@ include("../src/StaticSMC.jl");
 using Main.StaticSMC;
 using Distributions, MessyTimeSeries, Random;
 
-function test_univariate_normal_smc_log_abc_objective(observation::Float64, parameters::AbstractVector{Float64})
+function test_univariate_normal_smc_log_abc_objective(batch::AbstractArray{Float64}, parameters::AbstractVector{Float64}; no_simulations::Int64=1000)
     μ = parameters[1];
     σ² = get_bounded_logit(parameters[2], 0.0, 1000.0);
-    return logpdf(Normal(μ, sqrt(σ²)), observation);
+    
+    # Initialise summary statistics
+    summary_statistics = 0.0;
+
+    # Batch quantiles
+    batch_deciles = quantile.(batch, 0.1:0.1:1.0);
+
+    # Loop over no_simulations
+    for i=1:no_simulations
+
+        # Simulated data
+        batch_star = μ .+ sqrt(σ²)*randn(length(batch));
+
+        # Update `summary_statistics`
+        summary_statistics = max(abs.()); # KS statistics
+    end
+
+    # Take average across simulations
+    summary_statistics /= no_simulations;
 end
 
 function test_univariate_normal_smc_log_abc_gradient(observation::Float64, parameters::AbstractVector{Float64})

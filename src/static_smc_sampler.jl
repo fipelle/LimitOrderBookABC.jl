@@ -35,7 +35,7 @@ end
 
 """
     move!(
-        batch  :: SubArray{Float64}, 
+        batch  :: AbstractArray{Float64}, 
         system :: ParticleSystem; 
         ε      :: Float64=0.1
     )
@@ -46,7 +46,7 @@ Rejuvinating step based on the unadjusted Langevin algorithm (ULA).
 - Roberts and Tweedie (1996, 1.4.1)
 """
 function move!(
-    batch  :: SubArray{Float64}, 
+    batch  :: AbstractArray{Float64}, 
     system :: ParticleSystem; 
     ε      :: Float64=0.1
 )
@@ -65,7 +65,7 @@ end
 
 """
     update_weights!(
-        batch                :: SubArray{Float64}, 
+        batch                :: AbstractArray{Float64}, 
         batch_length         :: Int64, 
         system               :: ParticleSystem, 
         barrier_markov_order :: Int64
@@ -74,7 +74,7 @@ end
 Update weights within ibis iteration as in Chopin (2002).
 """
 function update_weights!(
-    batch                :: SubArray{Float64}, 
+    batch                :: AbstractArray{Float64}, 
     batch_length         :: Int64, 
     system               :: ParticleSystem, 
     barrier_markov_order :: Int64
@@ -103,7 +103,7 @@ end
 
 """
     update_weights!(
-        batch                :: SubArray{Float64}, 
+        batch                :: AbstractArray{Float64}, 
         batch_length         :: Int64, 
         system               :: ParticleSystem, 
         barrier_markov_order :: Int64
@@ -112,7 +112,7 @@ end
 Update weights within ibis iteration through Approximate Bayesian Computation (ABC).
 """
 function update_weights!(
-    batch                :: SubArray{Float64}, 
+    batch                :: AbstractArray{Float64}, 
     batch_length         :: Int64, 
     system               :: ParticleSystem, 
     barrier_markov_order :: Nothing
