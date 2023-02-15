@@ -2,10 +2,28 @@ include("../src/StaticSMC.jl");
 using Main.StaticSMC;
 using Distributions, MessyTimeSeries, Random;
 
-function test_univariate_normal_smc_log_likelihood(observation::Float64, parameters::AbstractVector{Float64})
+function test_univariate_normal_smc_log_likelihood(observation::Float64, parameters::AbstractVector{Float64}; no_simulations::Int64=1000)
     μ = parameters[1];
     σ² = get_bounded_logit(parameters[2], 0.0, 1000.0);
-    return logpdf(Normal(μ, sqrt(σ²)), observation);
+    
+    # Initialise summary statistics
+    log_statistics = 0.0;
+
+    # Loop over no_simulations
+    for i=1:no_simulations
+    
+        # Simulated data
+        observation_star = μ .+ sqrt(σ²)*randn();
+        
+        # Update `log_statistics`
+        log_statistics -= (observation-observation_star)^2;
+    end
+
+    # Take mean
+    log_statistics /= no_simulations;
+
+    # Return `log_statistics`
+    return log_statistics;
 end
 
 function test_univariate_normal_smc_log_gradient(observation::Float64, parameters::AbstractVector{Float64})
@@ -14,8 +32,8 @@ function test_univariate_normal_smc_log_gradient(observation::Float64, parameter
     σ² = get_bounded_logit(parameters[2], 0.0, 1000.0);
 
     return [
-        (observation-μ)/σ²;
-        (σ²-(observation-μ)^2)/(2*σ²^2)
+        (observation-μ);
+        -0.5
     ]
 end
 

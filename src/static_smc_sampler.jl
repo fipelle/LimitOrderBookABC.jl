@@ -87,13 +87,13 @@ function ibis_iteration!(
             
             # i.i.d.
             if system.markov_order == 0
-                system.log_weights[i] += system.log_likelihood(observation, view(system.particles, :, i));
+                system.log_weights[i] += system.log_objective(observation, view(system.particles, :, i));
             
             # Markov of order `system.markov_order` > 0
             else
                 @infiltrate
                 batch_lags = @view data[end-batch_length+j-system.markov_order:end-batch_length+j-1];
-                system.log_weights[i] += system.log_likelihood(observation, batch_lags, view(system.particles, :, i));
+                system.log_weights[i] += system.log_objective(observation, batch_lags, view(system.particles, :, i));
                 @infiltrate
             end
         end

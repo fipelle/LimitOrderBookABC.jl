@@ -14,7 +14,7 @@ mutable struct ParticleSystem
     
     # Densities
     priors::Vector{Distribution{Univariate, Continuous}}
-    log_likelihood::Function
+    log_objective::Function
     log_gradient::Function
     
     # Particles and weights
