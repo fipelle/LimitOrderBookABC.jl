@@ -6,7 +6,7 @@
 mutable struct ParticleSystem
 
     # Specifics
-    markov_order      :: Union{Int64, Nothing}
+    markov_order      :: Int64
     
     # Dimensions
     num_parameters    :: Int64

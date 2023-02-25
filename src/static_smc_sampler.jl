@@ -67,8 +67,7 @@ end
     update_weights!(
         batch                :: AbstractArray{Float64}, 
         batch_length         :: Int64, 
-        system               :: ParticleSystem, 
-        barrier_markov_order :: Int64
+        system               :: ParticleSystem
     )
 
 Update weights within ibis iteration as in Chopin (2002).
@@ -76,8 +75,7 @@ Update weights within ibis iteration as in Chopin (2002).
 function update_weights!(
     batch                :: AbstractArray{Float64}, 
     batch_length         :: Int64, 
-    system               :: ParticleSystem, 
-    barrier_markov_order :: Int64
+    system               :: ParticleSystem
 )
 
     # Loop over each particle
@@ -98,29 +96,6 @@ function update_weights!(
                 @infiltrate
             end
         end
-    end
-end
-
-"""
-    update_weights!(
-        batch                :: AbstractArray{Float64}, 
-        batch_length         :: Int64, 
-        system               :: ParticleSystem, 
-        barrier_markov_order :: Int64
-    )
-
-Update weights within ibis iteration through Approximate Bayesian Computation (ABC).
-"""
-function update_weights!(
-    batch                :: AbstractArray{Float64}, 
-    batch_length         :: Int64, 
-    system               :: ParticleSystem, 
-    barrier_markov_order :: Nothing
-)
-
-    # Loop over each particle
-    for i=1:system.num_particles
-        system.log_weights[i] += system.log_objective(batch, view(system.particles, :, i));
     end
 end
 
@@ -147,7 +122,7 @@ function ibis_iteration!(
     batch = @view data[end-batch_length+1:end];
 
     # Update the weights
-    update_weights!(batch, batch_length, system, system.markov_order);
+    update_weights!(batch, batch_length, system);
 
     # Normalise the weights
     offset = maximum(system.log_weights);
