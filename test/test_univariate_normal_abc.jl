@@ -4,31 +4,36 @@ using Distributions, MessyTimeSeries, Random;
 
 """
     log_objective(
-        observation :: Float64, 
-        parameters  :: AbstractVector{Float64}; 
-        no_sim      :: Int64 = 1000
+        batch        :: AbstractArray{Float64}, 
+        batch_length :: Int64, 
+        parameters   :: AbstractVector{Float64}; 
+        no_sim       :: Int64 = 1000
     )
 
 Compute the log-objective.
 """
 function log_objective(
-    observation :: Float64, 
-    parameters  :: AbstractVector{Float64}; 
-    no_sim      :: Int64 = 1000
+    batch        :: AbstractArray{Float64}, 
+    batch_length :: Int64, 
+    parameters   :: AbstractVector{Float64}; 
+    no_sim       :: Int64 = 1000
 )
     
     # Retrieve current parameters configuration
     μ = parameters[1];
     σ² = get_bounded_logit(parameters[2], 0.0, 1000.0);
     
-    # Compute MSE
-    mse = 0.0;
+    # Compute `summary`
+    summary = 0.0;
     for i=1:no_sim
-        mse += ((observation-μ-sqrt(σ²)*randn())^2)/no_sim;
+        batch_simulated = μ .+ sqrt(σ²)*randn(batch_length);
+        summary += abs(cor(batch, batch_simulated)) > 0.7
     end
-    
-    # Return -1*MSE
-    return -mse;
+    summary /= no_sim;
+    println(summary)
+
+    # Return `summary`
+    return summary;
 end
 
 """
@@ -51,6 +56,27 @@ function log_gradient(
         -2*(μ-observation);
         -2*σ²
     ]
+end
+
+"""
+    update_weights!(
+        batch        :: AbstractArray{Float64}, 
+        batch_length :: Int64, 
+        system       :: ParticleSystem
+    )
+
+Update weights within ibis iteration as in Chopin (2002).
+"""
+function update_weights!(
+    batch        :: AbstractArray{Float64}, 
+    batch_length :: Int64, 
+    system       :: ParticleSystem
+)
+
+    # Loop over each particle
+    for i=1:system.num_particles
+        system.log_weights[i] += system.log_objective(batch, batch_length, view(system.particles, :, i));
+    end
 end
 
 """
@@ -88,7 +114,8 @@ function test_univariate_normal_smc(N::Int64, M::Int64, num_particles::Int64; μ
             [Normal(0, λ^2); InverseGamma(3, 1)],
             log_objective,
             log_gradient,
-            
+            update_weights!, 
+
             # Particles and weights
             [rand(Normal(0, λ^2), 1, num_particles); rand(InverseGamma(3, 1), 1, num_particles)],
             log.(ones(num_particles) / num_particles),
@@ -97,7 +124,7 @@ function test_univariate_normal_smc(N::Int64, M::Int64, num_particles::Int64; μ
             Vector{Matrix{Float64}}()
         );
         
-        StaticSMC.sample!(y_i, 1, system);
+        StaticSMC.sample!(y_i, 20, system);
         push!(simulations_output, system);
     end
 
@@ -105,3 +132,5 @@ function test_univariate_normal_smc(N::Int64, M::Int64, num_particles::Int64; μ
 end
 
 simulation_output = test_univariate_normal_smc(100, 1, 1000);
+
+using Plots
