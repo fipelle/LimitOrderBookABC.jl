@@ -24,13 +24,13 @@ function log_objective(
     σ² = get_bounded_logit(parameters[2], 0.0, 1000.0);
     
     # Compute `summary`
-    summary = 0.0;
+    summary = Vector{Float64}(undef, 2);
     for i=1:no_sim
         batch_simulated = μ .+ sqrt(σ²)*randn(batch_length);
-        summary += abs(cor(batch, batch_simulated)) > 0.7
+        summary[1] += (mean(batch)-mean(batch_simulated))^2;
+        summary[2] += (var(batch)-var(batch_simulated))^2;
     end
-    summary /= no_sim;
-    println(summary)
+    summary ./= no_sim;
 
     # Return `summary`
     return summary;
@@ -52,9 +52,9 @@ function log_gradient(
     μ = parameters[1];
     σ² = get_bounded_logit(parameters[2], 0.0, 1000.0);
 
-    return [
-        -2*(μ-observation);
-        -2*σ²
+    return [0.0; 0.0;
+        #-2*(μ-observation);
+        #-2*σ²
     ]
 end
 
@@ -110,7 +110,7 @@ function test_univariate_normal_smc(N::Int64, M::Int64, num_particles::Int64; μ
             2,
             num_particles,
             
-            # Densities
+            # Functions
             [Normal(0, λ^2); InverseGamma(3, 1)],
             log_objective,
             log_gradient,
@@ -121,7 +121,10 @@ function test_univariate_normal_smc(N::Int64, M::Int64, num_particles::Int64; μ
             log.(ones(num_particles) / num_particles),
             ones(num_particles) / num_particles,
             Vector{Matrix{Float64}}(),
-            Vector{Matrix{Float64}}()
+            Vector{Matrix{Float64}}(),
+
+            # Optional parameters
+            [Inf; Inf]
         );
         
         StaticSMC.sample!(y_i, 20, system);

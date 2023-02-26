@@ -107,7 +107,7 @@ function test_univariate_normal_smc(N::Int64, M::Int64, num_particles::Int64; μ
             2,
             num_particles,
             
-            # Densities
+            # Functions
             [Normal(0, λ^2); InverseGamma(3, 1)],
             log_likelihood,
             log_gradient,
@@ -118,7 +118,10 @@ function test_univariate_normal_smc(N::Int64, M::Int64, num_particles::Int64; μ
             log.(ones(num_particles) / num_particles),
             ones(num_particles) / num_particles,
             Vector{Matrix{Float64}}(),
-            Vector{Matrix{Float64}}()
+            Vector{Matrix{Float64}}(),
+
+            # Optional parameters
+            nothing
         );
         
         StaticSMC.sample!(y_i, 1, system);

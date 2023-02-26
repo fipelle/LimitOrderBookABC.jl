@@ -12,7 +12,7 @@ mutable struct ParticleSystem
     num_parameters    :: Int64
     num_particles     :: Int64
     
-    # Densities
+    # Functions
     priors            :: Vector{Distribution{Univariate, Continuous}}
     log_objective     :: Function
     log_gradient      :: Function
@@ -24,4 +24,7 @@ mutable struct ParticleSystem
     weights           :: Vector{Float64}
     particles_history :: Vector{Matrix{Float64}}
     weights_history   :: Vector{Vector{Float64}}
+
+    # Optional parameters
+    tolerance         :: Union{Vector{Float64}, Float64, Nothing}
 end
