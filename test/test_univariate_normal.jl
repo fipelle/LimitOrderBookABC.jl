@@ -2,9 +2,17 @@ include("../src/StaticSMC.jl");
 using Main.StaticSMC;
 using Distributions, MessyTimeSeries, Random;
 
+"""
+    log_likelihood(
+        observation :: Float64, 
+        parameters  :: AbstractVector{Float64}
+    )
+
+Compute log-likelihood.
+"""
 function log_likelihood(
-    observation::Float64, 
-    parameters::AbstractVector{Float64}
+    observation :: Float64, 
+    parameters  :: AbstractVector{Float64}
 )
 
     μ = parameters[1];
@@ -12,9 +20,17 @@ function log_likelihood(
     return logpdf(Normal(μ, sqrt(σ²)), observation);
 end
 
+"""
+    log_gradient(
+        observation :: Float64, 
+        parameters  :: AbstractVector{Float64}
+    )
+
+Compute log-gradient.
+"""
 function log_gradient(
-    observation::Float64, 
-    parameters::AbstractVector{Float64}
+    observation :: Float64, 
+    parameters  :: AbstractVector{Float64}
 )
     
     μ = parameters[1];
@@ -96,7 +112,7 @@ function test_univariate_normal_smc(N::Int64, M::Int64, num_particles::Int64; μ
             log_likelihood,
             log_gradient,
             update_weights!,
-            
+
             # Particles and weights
             [rand(Normal(0, λ^2), 1, num_particles); rand(InverseGamma(3, 1), 1, num_particles)],
             log.(ones(num_particles) / num_particles),
