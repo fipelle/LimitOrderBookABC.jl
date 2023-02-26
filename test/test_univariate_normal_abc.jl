@@ -2,20 +2,54 @@ include("../src/StaticSMC.jl");
 using Main.StaticSMC;
 using Distributions, MessyTimeSeries, Random;
 
-function test_univariate_normal_smc_log_objective(observation::Float64, parameters::AbstractVector{Float64})
+"""
+    log_objective(
+        observation :: Float64, 
+        parameters  :: AbstractVector{Float64}; 
+        no_sim      :: Int64 = 1000
+    )
+
+Compute the log-objective.
+"""
+function log_objective(
+    observation :: Float64, 
+    parameters  :: AbstractVector{Float64}; 
+    no_sim      :: Int64 = 1000
+)
+    
+    # Retrieve current parameters configuration
     μ = parameters[1];
     σ² = get_bounded_logit(parameters[2], 0.0, 1000.0);
-    return logpdf(Normal(μ, sqrt(σ²)), observation);
+    
+    # Compute MSE
+    mse = 0.0;
+    for i=1:no_sim
+        mse += ((observation-μ-sqrt(σ²)*randn())^2)/no_sim;
+    end
+    
+    # Return -1*MSE
+    return -mse;
 end
 
-function test_univariate_normal_smc_log_gradient(observation::Float64, parameters::AbstractVector{Float64})
+"""
+    log_gradient(
+        observation :: Float64, 
+        parameters  :: AbstractVector{Float64}
+    )
+
+Compute the log-gradient.
+"""
+function log_gradient(
+    observation :: Float64, 
+    parameters  :: AbstractVector{Float64}
+)
     
     μ = parameters[1];
     σ² = get_bounded_logit(parameters[2], 0.0, 1000.0);
 
     return [
-        (observation-μ)/σ²;
-        (σ²-(observation-μ)^2)/(2*σ²^2)
+        -2*(μ-observation);
+        -2*σ²
     ]
 end
 
@@ -52,8 +86,8 @@ function test_univariate_normal_smc(N::Int64, M::Int64, num_particles::Int64; μ
             
             # Densities
             [Normal(0, λ^2); InverseGamma(3, 1)],
-            test_univariate_normal_smc_log_objective,
-            test_univariate_normal_smc_log_gradient,
+            log_objective,
+            log_gradient,
             
             # Particles and weights
             [rand(Normal(0, λ^2), 1, num_particles); rand(InverseGamma(3, 1), 1, num_particles)],
