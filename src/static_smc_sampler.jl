@@ -64,42 +64,6 @@ function move!(
 end
 
 """
-    update_weights!(
-        batch                :: AbstractArray{Float64}, 
-        batch_length         :: Int64, 
-        system               :: ParticleSystem
-    )
-
-Update weights within ibis iteration as in Chopin (2002).
-"""
-function update_weights!(
-    batch                :: AbstractArray{Float64}, 
-    batch_length         :: Int64, 
-    system               :: ParticleSystem
-)
-
-    # Loop over each particle
-    for i=1:system.num_particles
-
-        # Loop over each observation in `batch`
-        for (j, observation) in enumerate(batch)
-            
-            # i.i.d.
-            if system.markov_order == 0
-                system.log_weights[i] += system.log_objective(observation, view(system.particles, :, i));
-            
-            # Markov of order `system.markov_order` > 0
-            else
-                @infiltrate
-                batch_lags = @view data[end-batch_length+j-system.markov_order:end-batch_length+j-1];
-                system.log_weights[i] += system.log_objective(observation, batch_lags, view(system.particles, :, i));
-                @infiltrate
-            end
-        end
-    end
-end
-
-"""
     ibis_iteration!(
         data         :: Vector{Float64},
         batch_length :: Int64,
@@ -122,7 +86,7 @@ function ibis_iteration!(
     batch = @view data[end-batch_length+1:end];
 
     # Update the weights
-    update_weights!(batch, batch_length, system);
+    system.update_weights!(batch, batch_length, system);
 
     # Normalise the weights
     offset = maximum(system.log_weights);
@@ -134,7 +98,7 @@ function ibis_iteration!(
 
         # Resample the particles and reset the weights
         resample!(system);
-        
+
         # Rejuvenate the particles
         move!(batch, system);
     
