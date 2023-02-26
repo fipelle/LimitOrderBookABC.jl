@@ -2,13 +2,20 @@ include("../src/StaticSMC.jl");
 using Main.StaticSMC;
 using Distributions, MessyTimeSeries, Random;
 
-function test_univariate_normal_smc_log_likelihood(observation::Float64, parameters::AbstractVector{Float64})
+function log_likelihood(
+    observation::Float64, 
+    parameters::AbstractVector{Float64}
+)
+
     μ = parameters[1];
     σ² = get_bounded_logit(parameters[2], 0.0, 1000.0);
     return logpdf(Normal(μ, sqrt(σ²)), observation);
 end
 
-function test_univariate_normal_smc_log_gradient(observation::Float64, parameters::AbstractVector{Float64})
+function log_gradient(
+    observation::Float64, 
+    parameters::AbstractVector{Float64}
+)
     
     μ = parameters[1];
     σ² = get_bounded_logit(parameters[2], 0.0, 1000.0);
@@ -17,6 +24,40 @@ function test_univariate_normal_smc_log_gradient(observation::Float64, parameter
         (observation-μ)/σ²;
         (σ²-(observation-μ)^2)/(2*σ²^2)
     ]
+end
+
+"""
+    update_weights!(
+        batch                :: AbstractArray{Float64}, 
+        batch_length         :: Int64, 
+        system               :: ParticleSystem
+    )
+
+Update weights within ibis iteration as in Chopin (2002).
+"""
+function update_weights!(
+    batch                :: AbstractArray{Float64}, 
+    batch_length         :: Int64, 
+    system               :: ParticleSystem
+)
+
+    # Loop over each particle
+    for i=1:system.num_particles
+
+        # Loop over each observation in `batch`
+        for (j, observation) in enumerate(batch)
+            
+            # i.i.d.
+            if system.markov_order == 0
+                system.log_weights[i] += system.log_objective(observation, view(system.particles, :, i));
+            
+            # Markov of order `system.markov_order` > 0
+            else
+                batch_lags = @view data[end-batch_length+j-system.markov_order:end-batch_length+j-1];
+                system.log_weights[i] += system.log_objective(observation, batch_lags, view(system.particles, :, i));
+            end
+        end
+    end
 end
 
 """
@@ -52,8 +93,9 @@ function test_univariate_normal_smc(N::Int64, M::Int64, num_particles::Int64; μ
             
             # Densities
             [Normal(0, λ^2); InverseGamma(3, 1)],
-            test_univariate_normal_smc_log_likelihood,
-            test_univariate_normal_smc_log_gradient,
+            log_likelihood,
+            log_gradient,
+            update_weights!,
             
             # Particles and weights
             [rand(Normal(0, λ^2), 1, num_particles); rand(InverseGamma(3, 1), 1, num_particles)],
