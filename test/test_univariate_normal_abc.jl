@@ -15,7 +15,8 @@ Compute the log-objective.
 function log_objective(
     batch        :: AbstractArray{Float64}, 
     batch_length :: Int64, 
-    parameters   :: AbstractVector{Float64}; 
+    parameters   :: AbstractVector{Float64},
+    system       :: ParticleSystem; 
     no_sim       :: Int64 = 1000
 )
     
@@ -23,15 +24,36 @@ function log_objective(
     μ = parameters[1];
     σ² = get_bounded_logit(parameters[2], 0.0, 1000.0);
     
-    # Compute `summary`
-    summary = Vector{Float64}(undef, 2);
-    for i=1:no_sim
-        batch_simulated = μ .+ sqrt(σ²)*randn(batch_length);
-        summary[1] += (mean(batch)-mean(batch_simulated))^2;
-        summary[2] += (var(batch)-var(batch_simulated))^2;
-    end
-    summary ./= no_sim;
+    # Initialise new_tolerance
+    no_statistics = length(system.tolerance);
+    new_tolerance = zeros(no_statistics);
 
+    # Compute summary statistics
+    summary = 0.0; 
+    distances = zeros(no_statistics);
+
+    for i=1:no_sim
+
+        # Simulate data
+        batch_simulated = μ .+ sqrt(σ²)*randn(batch_length);
+
+        # Compute distances
+        distances[1] = (mean(batch)-mean(batch_simulated))^2;
+        distances[2] = (var(batch)-var(batch_simulated))^2;
+
+        # Update summary
+        summary += prod(distances .<= system.tolerance);
+
+        # Compute new tolerance
+        new_tolerance .= max.(distances, new_tolerance); # this works since `new_tolerance` is initialised to zero
+    end
+
+    # Finalise `summary` calculation
+    summary /= no_sim;
+
+    # Update tolerance
+    system.tolerance .= min.(new_tolerance, system.tolerance);
+    
     # Return `summary`
     return summary;
 end
@@ -75,7 +97,7 @@ function update_weights!(
 
     # Loop over each particle
     for i=1:system.num_particles
-        system.log_weights[i] += system.log_objective(batch, batch_length, view(system.particles, :, i));
+        system.log_weights[i] += system.log_objective(batch, batch_length, view(system.particles, :, i), system);
     end
 end
 
