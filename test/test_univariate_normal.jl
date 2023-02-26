@@ -44,17 +44,17 @@ end
 
 """
     update_weights!(
-        batch                :: AbstractArray{Float64}, 
-        batch_length         :: Int64, 
-        system               :: ParticleSystem
+        batch        :: AbstractArray{Float64}, 
+        batch_length :: Int64, 
+        system       :: ParticleSystem
     )
 
 Update weights within ibis iteration as in Chopin (2002).
 """
 function update_weights!(
-    batch                :: AbstractArray{Float64}, 
-    batch_length         :: Int64, 
-    system               :: ParticleSystem
+    batch        :: AbstractArray{Float64}, 
+    batch_length :: Int64, 
+    system       :: ParticleSystem
 )
 
     # Loop over each particle
