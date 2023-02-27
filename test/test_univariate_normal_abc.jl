@@ -1,6 +1,6 @@
 include("../src/StaticSMC.jl");
 using Main.StaticSMC;
-using Distributions, MessyTimeSeries, Random;
+using Distances, Distributions, MessyTimeSeries, Random;
 
 """
     log_objective!(
@@ -35,10 +35,8 @@ function log_objective!(
         batch_simulated = μ .+ sqrt(σ²)*randn(batch_length);
 
         # Compute distances
-        distances[1] = (mean(batch)-mean(batch_simulated))^2;
-        distances[2] = (var(batch)-var(batch_simulated))^2;
-        distances[3] = (skewness(batch)-skewness(batch_simulated))^2;
-        distances[4] = (kurtosis(batch)-kurtosis(batch_simulated))^2;
+        distances[1] = euclidean(mean(batch), mean(batch_simulated));
+        distances[2] = euclidean(var(batch), var(batch_simulated));
 
         # Update summary
         summary += prod(distances .<= system.tolerance);
@@ -51,7 +49,7 @@ function log_objective!(
     summary /= no_sim;
 
     # Return `summary`
-    return -summary;
+    return summary;
 end
 
 """
@@ -100,8 +98,7 @@ function update_weights!(
     end
 
     # Update tolerance
-    @infiltrate
-    system.tolerance .= min.(0.9*trial_tolerance, 0.9*system.tolerance);
+    system.tolerance .= min.(0.95*trial_tolerance, 0.95*system.tolerance);
     println(system.tolerance);
 end
 
@@ -150,7 +147,7 @@ function test_univariate_normal_smc(N::Int64, M::Int64, num_particles::Int64; μ
             Vector{Matrix{Float64}}(),
 
             # Optional parameters
-            [Inf; Inf; Inf; Inf]
+            [Inf; Inf]
         );
         
         StaticSMC.sample!(y_i, fld(N, 10), system);
