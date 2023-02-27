@@ -3,7 +3,7 @@ using Main.StaticSMC;
 using Distributions, MessyTimeSeries, Random;
 
 """
-    log_objective(
+    log_objective!(
         batch        :: AbstractArray{Float64}, 
         batch_length :: Int64, 
         parameters   :: AbstractVector{Float64}; 
@@ -12,25 +12,22 @@ using Distributions, MessyTimeSeries, Random;
 
 Compute the log-objective.
 """
-function log_objective(
-    batch        :: AbstractArray{Float64}, 
-    batch_length :: Int64, 
-    parameters   :: AbstractVector{Float64},
-    system       :: ParticleSystem; 
-    no_sim       :: Int64 = 1000
+function log_objective!(
+    batch           :: AbstractArray{Float64}, 
+    batch_length    :: Int64, 
+    parameters      :: AbstractVector{Float64},
+    trial_tolerance :: Vector{Float64}, # this is updated in-place within the function
+    system          :: ParticleSystem; 
+    no_sim          :: Int64 = 1000
 )
     
     # Retrieve current parameters configuration
     μ = parameters[1];
     σ² = get_bounded_logit(parameters[2], 0.0, 1000.0);
     
-    # Initialise new_tolerance
-    no_statistics = length(system.tolerance);
-    new_tolerance = zeros(no_statistics);
-
     # Compute summary statistics
     summary = 0.0; 
-    distances = zeros(no_statistics);
+    distances = similar(system.tolerance);
 
     for i=1:no_sim
 
@@ -40,22 +37,21 @@ function log_objective(
         # Compute distances
         distances[1] = (mean(batch)-mean(batch_simulated))^2;
         distances[2] = (var(batch)-var(batch_simulated))^2;
+        distances[3] = (skewness(batch)-skewness(batch_simulated))^2;
+        distances[4] = (kurtosis(batch)-kurtosis(batch_simulated))^2;
 
         # Update summary
         summary += prod(distances .<= system.tolerance);
 
         # Compute new tolerance
-        new_tolerance .= max.(distances, new_tolerance); # this works since `new_tolerance` is initialised to zero
+        trial_tolerance .= max.(distances, trial_tolerance); # this works since `trial_tolerance` is initialised to zero
     end
 
     # Finalise `summary` calculation
     summary /= no_sim;
 
-    # Update tolerance
-    system.tolerance .= min.(new_tolerance, system.tolerance);
-    
     # Return `summary`
-    return summary;
+    return -summary;
 end
 
 """
@@ -95,10 +91,18 @@ function update_weights!(
     system       :: ParticleSystem
 )
 
+    # Initialise `trial_tolerance`
+    trial_tolerance = zeros(size(system.tolerance));
+
     # Loop over each particle
     for i=1:system.num_particles
-        system.log_weights[i] += system.log_objective(batch, batch_length, view(system.particles, :, i), system);
+        system.log_weights[i] += system.log_objective(batch, batch_length, view(system.particles, :, i), trial_tolerance, system);
     end
+
+    # Update tolerance
+    @infiltrate
+    system.tolerance .= min.(0.9*trial_tolerance, 0.9*system.tolerance);
+    println(system.tolerance);
 end
 
 """
@@ -134,7 +138,7 @@ function test_univariate_normal_smc(N::Int64, M::Int64, num_particles::Int64; μ
             
             # Functions
             [Normal(0, λ^2); InverseGamma(3, 1)],
-            log_objective,
+            log_objective!,
             log_gradient,
             update_weights!, 
 
@@ -146,16 +150,16 @@ function test_univariate_normal_smc(N::Int64, M::Int64, num_particles::Int64; μ
             Vector{Matrix{Float64}}(),
 
             # Optional parameters
-            [Inf; Inf]
+            [Inf; Inf; Inf; Inf]
         );
         
-        StaticSMC.sample!(y_i, 20, system);
+        StaticSMC.sample!(y_i, fld(N, 10), system);
         push!(simulations_output, system);
     end
 
     return simulations_output;
 end
 
-simulation_output = test_univariate_normal_smc(100, 1, 1000);
+simulation_output = test_univariate_normal_smc(1000, 1, 1000);
 
 using Plots
