@@ -6,11 +6,11 @@ Return ESS of the weights.
 effective_sample_size(system::ParticleSystem) = 1/sum(system.weights.^2);
 
 """
-    resample!(system::ParticleSystem)
+    _resample!(system::ParticleSystem)
 
 Resampling step.
 """
-function resample!(system::ParticleSystem)
+function _resample!(system::ParticleSystem)
 
     # Create a Multinomial distribution using the weights as probabilities
     mn = Multinomial(system.num_particles, system.weights);
@@ -34,7 +34,7 @@ function resample!(system::ParticleSystem)
 end
 
 """
-    move!(
+    _move!(
         batch  :: AbstractArray{Float64}, 
         system :: ParticleSystem; 
         ε      :: Float64=0.1
@@ -45,7 +45,7 @@ Rejuvinating step based on the unadjusted Langevin algorithm (ULA).
 # References
 - Roberts and Tweedie (1996, 1.4.1)
 """
-function move!(
+function _move!(
     batch  :: AbstractArray{Float64}, 
     system :: ParticleSystem; 
     ε      :: Float64=0.1
@@ -64,7 +64,7 @@ function move!(
 end
 
 """
-    ibis_iteration!(
+    _ibis_iteration!(
         data         :: Vector{Float64},
         batch_length :: Int64,
         system       :: ParticleSystem
@@ -76,7 +76,7 @@ Iterated batch importance sampling algorithms: iteration for new batch of data.
 - Chopin (2002, Section 4.1)
 - Roberts and Tweedie (1996, 1.4.1)
 """
-function ibis_iteration!(
+function _ibis_iteration!(
     data         :: Vector{Float64},
     batch_length :: Int64,
     system       :: ParticleSystem
@@ -97,10 +97,10 @@ function ibis_iteration!(
     if effective_sample_size(system) < system.num_particles/2
 
         # Resample the particles and reset the weights
-        resample!(system);
+        _resample!(system);
 
         # Rejuvenate the particles
-        move!(batch, system);
+        _move!(batch, system);
     
     # Update `system.log_weights` to reflect normalisation
     else
@@ -136,7 +136,7 @@ function sample!(
         data = full_data[1:counter];
         
         # Iterated batch importance sampling round
-        ibis_iteration!(data, batch_length, system);
+        _ibis_iteration!(data, batch_length, system);
         
         # Update counter
         counter += batch_length;
