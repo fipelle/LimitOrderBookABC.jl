@@ -25,6 +25,7 @@ mutable struct ParticleSystem
     particles_history :: Vector{Matrix{Float64}}
     weights_history   :: Vector{Vector{Float64}}
 
-    # Optional parameters
-    tolerance         :: Union{Vector{Float64}, Float64, Nothing}
+    # Tolerances
+    tolerance_abc     :: Union{Vector{Float64}, Float64, Nothing}
+    tolerance_move    :: Union{Vector{Float64}, Float64, Nothing}
 end

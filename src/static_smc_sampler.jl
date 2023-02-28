@@ -36,8 +36,7 @@ end
 """
     _move!(
         batch  :: AbstractArray{Float64}, 
-        system :: ParticleSystem; 
-        ε      :: Float64=0.1
+        system :: ParticleSystem
     )
 
 Rejuvinating step based on the unadjusted Langevin algorithm (ULA).
@@ -47,19 +46,18 @@ Rejuvinating step based on the unadjusted Langevin algorithm (ULA).
 """
 function _move!(
     batch  :: AbstractArray{Float64}, 
-    system :: ParticleSystem; 
-    ε      :: Float64=0.1
+    system :: ParticleSystem
 )
 
     for i=1:system.num_particles
         
         # Loop over batch
         for observation in batch
-            system.particles[:, i] .+= ε/2*system.log_gradient(observation, view(system.particles, :, i));
+            system.particles[:, i] .+= system.tolerance_move/2*system.log_gradient(observation, view(system.particles, :, i));
         end
         
         # Random perturbation
-        system.particles[:, i] .+= sqrt(ε)*randn(system.num_parameters);
+        system.particles[:, i] .+= sqrt(system.tolerance_move)*randn(system.num_parameters);
     end
 end
 

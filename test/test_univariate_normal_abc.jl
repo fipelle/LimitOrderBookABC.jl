@@ -136,8 +136,9 @@ function test_univariate_normal_smc(N::Int64, M::Int64, num_particles::Int64; μ
             Vector{Matrix{Float64}}(),
             Vector{Matrix{Float64}}(),
 
-            # Optional parameters
-            [NaN; NaN]
+            # Tolerances
+            [NaN; NaN],
+            0.1
         );
         
         StaticSMC.sample!(y_i, fld(N, 10), system);
