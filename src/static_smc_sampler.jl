@@ -94,6 +94,7 @@ function _ibis_iteration!(
     system.weights ./= sum(system.weights);
 
     # Resample and move
+    println(effective_sample_size(system))
     if effective_sample_size(system) < system.num_particles/2
 
         # Resample the particles and reset the weights

@@ -6,50 +6,37 @@ using Distances, Distributions, MessyTimeSeries, Random;
     log_objective!(
         batch        :: AbstractArray{Float64}, 
         batch_length :: Int64, 
-        parameters   :: AbstractVector{Float64}; 
+        parameters   :: AbstractVector{Float64},
+        accuracy     :: AbstractVector{Float64};
         no_sim       :: Int64 = 1000
     )
 
 Compute the log-objective.
 """
 function log_objective!(
-    batch           :: AbstractArray{Float64}, 
-    batch_length    :: Int64, 
-    parameters      :: AbstractVector{Float64},
-    trial_tolerance :: Vector{Float64}, # this is updated in-place within the function
-    system          :: ParticleSystem; 
-    no_sim          :: Int64 = 1000
+    batch        :: AbstractArray{Float64}, 
+    batch_length :: Int64, 
+    parameters   :: AbstractVector{Float64},
+    accuracy     :: AbstractVector{Float64};
+    no_sim       :: Int64 = 1000
 )
     
     # Retrieve current parameters configuration
     μ = parameters[1];
     σ² = get_bounded_logit(parameters[2], 0.0, 1000.0);
     
-    # Compute summary statistics
-    summary = 0.0; 
-    distances = similar(system.tolerance);
-
     for i=1:no_sim
 
         # Simulate data
         batch_simulated = μ .+ sqrt(σ²)*randn(batch_length);
-
-        # Compute distances
-        distances[1] = euclidean(mean(batch), mean(batch_simulated));
-        distances[2] = euclidean(var(batch), var(batch_simulated));
-
-        # Update summary
-        summary += prod(distances .<= system.tolerance);
-
-        # Compute new tolerance
-        trial_tolerance .= max.(distances, trial_tolerance); # this works since `trial_tolerance` is initialised to zero
+        
+        # Compute accuracy
+        accuracy[1] += -euclidean(mean(batch), mean(batch_simulated));
+        accuracy[2] += -euclidean(std(batch), std(batch_simulated));
     end
 
-    # Finalise `summary` calculation
-    summary /= no_sim;
-
-    # Return `summary`
-    return summary;
+    # Take average across simulations
+    accuracy ./= no_sim;
 end
 
 """
@@ -81,7 +68,7 @@ end
         system       :: ParticleSystem
     )
 
-Update weights within ibis iteration as in Chopin (2002).
+Update weights within ibis iteration.
 """
 function update_weights!(
     batch        :: AbstractArray{Float64}, 
@@ -89,17 +76,20 @@ function update_weights!(
     system       :: ParticleSystem
 )
 
-    # Initialise `trial_tolerance`
-    trial_tolerance = zeros(size(system.tolerance));
+    # Initialise `accuracy`
+    accuracy = zeros(length(system.tolerance), system.num_particles);
 
     # Loop over each particle
     for i=1:system.num_particles
-        system.log_weights[i] += system.log_objective(batch, batch_length, view(system.particles, :, i), trial_tolerance, system);
+        system.log_objective(batch, batch_length, view(system.particles, :, i), view(accuracy, :, i));
     end
 
+    @infiltrate
+    system.log_weights .= accuracy[:];
+
     # Update tolerance
-    system.tolerance .= min.(0.95*trial_tolerance, 0.95*system.tolerance);
-    println(system.tolerance);
+    #system.tolerance .= min.(0.95*trial_tolerance, 0.95*system.tolerance);
+    #println(system.tolerance);
 end
 
 """
@@ -147,7 +137,7 @@ function test_univariate_normal_smc(N::Int64, M::Int64, num_particles::Int64; μ
             Vector{Matrix{Float64}}(),
 
             # Optional parameters
-            [Inf; Inf]
+            [NaN; NaN]
         );
         
         StaticSMC.sample!(y_i, fld(N, 10), system);
