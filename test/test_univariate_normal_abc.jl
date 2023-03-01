@@ -31,8 +31,9 @@ function log_objective!(
         batch_simulated = μ .+ sqrt(σ²)*randn(batch_length);
         
         # Compute accuracy
-        accuracy[1] += -euclidean(mean(batch), mean(batch_simulated));
-        accuracy[2] += -euclidean(std(batch), std(batch_simulated));
+        accuracy[1] += -euclidean(batch, batch_simulated);
+        #accuracy[1] += -euclidean(mean(batch), mean(batch_simulated));
+        #accuracy[2] += -euclidean(std(batch), std(batch_simulated));
     end
 
     # Take average across simulations
@@ -77,16 +78,20 @@ function update_weights!(
 )
 
     # Initialise `accuracy`
-    accuracy = zeros(length(system.tolerance), system.num_particles);
+    accuracy = zeros(length(system.tolerance_abc), system.num_particles);
 
     # Loop over each particle
     for i=1:system.num_particles
         system.log_objective(batch, batch_length, view(system.particles, :, i), view(accuracy, :, i));
     end
 
-    @infiltrate
-    system.log_weights .= accuracy[:];
+    # Aggregate accuracy
+    aggregate_accuracy = accuracy[:];
 
+    # Compute log weights
+    # check in (0, 1000]
+    # system.log_weights .= ;
+    
     # Update tolerance
     #system.tolerance .= min.(0.95*trial_tolerance, 0.95*system.tolerance);
     #println(system.tolerance);
@@ -137,7 +142,7 @@ function test_univariate_normal_smc(N::Int64, M::Int64, num_particles::Int64; μ
             Vector{Matrix{Float64}}(),
 
             # Tolerances
-            [NaN; NaN],
+            [NaN],
             0.1
         );
         

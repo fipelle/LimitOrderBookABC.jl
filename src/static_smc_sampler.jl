@@ -62,6 +62,70 @@ function _move!(
 end
 
 """
+    find_best_tuning(
+        target_ess           :: Float64,
+        target_ess_tolerance :: Float64,
+        search_region        :: MVector{3, Float64}, # default: [max, mid, min]
+        candidate_ess_fun    :: Function,
+        candidate_ess_args   :: Tuple
+    )
+
+Find best tuning parameter.
+"""
+function find_best_tuning(
+    target_ess           :: Float64,
+    target_ess_tolerance :: Float64,
+    search_region        :: MVector{3, Float64}, # default: [max, mid, min]
+    candidate_ess_fun    :: Function,
+    candidate_ess_args   :: Tuple
+)
+
+    # Compute effective sample sizes
+    ess = [candidate_ess_fun(search_region[1], candidate_ess_args...);
+           candidate_ess_fun(search_region[2], candidate_ess_args...);
+           candidate_ess_fun(search_region[3], candidate_ess_args...)];
+
+    # Compute its distance from `target_ess`
+    distance = euclidean.(ess, target_ess);
+
+    # First best
+    first_best_ind = findfirst(distance .<= target_ess_tolerance);
+    if ~isnothing(first_best_ind)
+        return search_region[first_best_ind];
+    
+    # Second best or re-try
+    else
+
+        # Second best (i.e., early stopping)
+        if ess[1] < target_ess_tolerance
+            return search_region[1];
+
+        # Re-try
+        else
+
+            # Reset `search_region`
+            if distance[1] <= distance[3]
+                search_region[1] = search_region[1]/2 + search_region[2]/2;
+                search_region[3] = search_region[2];
+            else
+                search_region[1] = search_region[2];
+                search_region[3] = search_region[2]/2 + search_region[3]/2;
+            end
+            search_region[2] = search_region[1]/2 + search_region[3]/2;
+
+            # Recursive call
+            return find_best_tuning(
+                target_ess,
+                target_ess_tolerance,
+                search_region,
+                candidate_ess_fun,
+                candidate_ess_args
+            );
+        end
+    end
+end
+
+"""
     _ibis_iteration!(
         data         :: Vector{Float64},
         batch_length :: Int64,
@@ -90,6 +154,7 @@ function _ibis_iteration!(
     offset = maximum(system.log_weights);
     system.weights = exp.(system.log_weights .- offset);
     system.weights ./= sum(system.weights);
+    @infiltrate
 
     # Resample and move
     println(effective_sample_size(system))
