@@ -9,5 +9,5 @@ module StaticSMC
     include("static_smc_sampler.jl");
 
     # Exports
-    export effective_sample_size, sample!, ParticleSystem;
+    export sample!, ParticleSystem;
 end

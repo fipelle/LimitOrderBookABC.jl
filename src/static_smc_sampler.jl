@@ -1,9 +1,11 @@
 """
-    effective_sample_size(system::ParticleSystem)
+    _effective_sample_size(weights :: AbstractVector{Float64})    
+    _effective_sample_size(system  :: ParticleSystem)
 
 Return ESS of the weights.
 """
-effective_sample_size(system::ParticleSystem) = 1/sum(system.weights.^2);
+_effective_sample_size(weights :: AbstractVector{Float64}) = 1/sum(weights.^2);
+_effective_sample_size(system  :: ParticleSystem) = _effective_sample_size(system.weights);
 
 """
     _resample!(system::ParticleSystem)
@@ -157,8 +159,8 @@ function _ibis_iteration!(
     @infiltrate
 
     # Resample and move
-    println(effective_sample_size(system))
-    if effective_sample_size(system) < system.num_particles/2
+    println(_effective_sample_size(system))
+    if _effective_sample_size(system) < system.num_particles/2
 
         # Resample the particles and reset the weights
         _resample!(system);
