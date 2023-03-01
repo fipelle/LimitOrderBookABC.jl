@@ -1,7 +1,7 @@
 module StaticSMC
 
     # Dependencies
-    using Distributions, Distances, Random, Statistics;
+    using Distributions, Distances, Random, StaticArrays, Statistics;
     using Infiltrator;
     
     # Local Dependencies
