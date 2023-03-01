@@ -8,6 +8,31 @@ _effective_sample_size(weights :: AbstractVector{Float64}) = 1/sum(weights.^2);
 _effective_sample_size(system  :: ParticleSystem) = _effective_sample_size(system.weights);
 
 """
+    _effective_sample_size_abc_scaling(
+        candidate_scaling  :: Float64,
+        aggregate_accuracy :: AbstractVector{Float64},
+    )
+
+Return ESS associated to `candidate_scaling` having se the log_weights as a function of the `aggregate_accuracy`.
+"""
+function _effective_sample_size_abc_scaling(
+    candidate_scaling  :: Float64,
+    aggregate_accuracy :: AbstractVector{Float64},
+)
+
+    # Weights in log-scale
+    log_weights = aggregate_accuracy / candidate_scaling;
+
+    # Convert in lin-scale
+    offset = maximum(log_weights);
+    weights = exp.(log_weights .- offset);
+    weights ./= sum(weights);
+
+    # Return ess
+    return _effective_sample_size(weights);
+end
+
+"""
     _resample!(system::ParticleSystem)
 
 Resampling step.
@@ -64,7 +89,7 @@ function _move!(
 end
 
 """
-    find_best_tuning(
+    _find_best_tuning(
         target_ess           :: Float64,
         target_ess_tolerance :: Float64,
         search_region        :: MVector{3, Float64}, # default: [max, mid, min]
@@ -74,7 +99,7 @@ end
 
 Find best tuning parameter.
 """
-function find_best_tuning(
+function _find_best_tuning(
     target_ess           :: Float64,
     target_ess_tolerance :: Float64,
     search_region        :: MVector{3, Float64}, # default: [max, mid, min]
@@ -116,7 +141,7 @@ function find_best_tuning(
             search_region[2] = search_region[1]/2 + search_region[3]/2;
 
             # Recursive call
-            return find_best_tuning(
+            return _find_best_tuning(
                 target_ess,
                 target_ess_tolerance,
                 search_region,
