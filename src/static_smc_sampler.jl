@@ -114,31 +114,38 @@ function _find_best_tuning(
 
     # Compute its distance from `target_ess`
     distance = euclidean.(ess, target_ess);
-
-    # First best
-    first_best_ind = findfirst(distance .<= target_ess_tolerance);
-    if ~isnothing(first_best_ind)
-        return search_region[first_best_ind];
     
-    # Second best or re-try
+    # Coordinates of the best option
+    coordinate_best_option = argmin(distance);
+    
+    # Stopping criterion 1
+    if (distance[coordinate_best_option] <= target_ess_tolerance) || (search_region[1]-search_region[3] <= target_ess_tolerance/10)
+        return search_region[coordinate_best_option];
+    
+    # Second best
     else
 
-        # Second best (i.e., early stopping)
-        if ess[1] < target_ess_tolerance
+        # Stopping criterion 2
+        if ess[1] < target_ess
             return search_region[1];
 
         # Re-try
         else
 
-            # Reset `search_region`
-            if distance[1] <= distance[3]
-                search_region[1] = search_region[1]/2 + search_region[2]/2;
-                search_region[3] = search_region[2];
+            # Compute high-to-mid ratio
+            high_to_mid_ratio = search_region[1]/search_region[2];
+
+            # Update mid-point
+            search_region[2] *= 0.5;
+            if ess[1] <= target_ess <= ess[2]
+                search_region[2] += 0.5*search_region[1];
             else
-                search_region[1] = search_region[2];
-                search_region[3] = search_region[2]/2 + search_region[3]/2;
+                search_region[2] += 0.5*search_region[3];
             end
-            search_region[2] = search_region[1]/2 + search_region[3]/2;
+
+            # Update high and low
+            search_region[1] = high_to_mid_ratio*search_region[2];
+            search_region[3] = (2-high_to_mid_ratio)*search_region[2];
 
             # Recursive call
             return _find_best_tuning(
@@ -181,7 +188,6 @@ function _ibis_iteration!(
     offset = maximum(system.log_weights);
     system.weights = exp.(system.log_weights .- offset);
     system.weights ./= sum(system.weights);
-    @infiltrate
 
     # Resample and move
     println(_effective_sample_size(system))

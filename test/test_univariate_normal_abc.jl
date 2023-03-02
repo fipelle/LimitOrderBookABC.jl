@@ -1,6 +1,7 @@
 include("../src/StaticSMC.jl");
 using Main.StaticSMC;
-using Distances, Distributions, MessyTimeSeries, Random;
+using Distances, Distributions, MessyTimeSeries, Random, StaticArrays;
+using Infiltrator;
 
 """
     log_objective!(
@@ -88,13 +89,16 @@ function update_weights!(
     # Aggregate accuracy
     aggregate_accuracy = accuracy[:];
 
+    system.tolerance_abc = StaticSMC._find_best_tuning(
+        system.num_particles / 2 + 1,
+        system.num_particles / 10,
+        MVector(500.0, 250.5, 1.0),
+        StaticSMC._effective_sample_size_abc_scaling,
+        (aggregate_accuracy,)
+    )
+
     # Compute log weights
-    # check in (0, 1000]
-    # system.log_weights .= ;
-    
-    # Update tolerance
-    #system.tolerance .= min.(0.95*trial_tolerance, 0.95*system.tolerance);
-    #println(system.tolerance);
+    system.log_weights .= aggregate_accuracy[:] / system.tolerance_abc;
 end
 
 """
