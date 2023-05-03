@@ -86,6 +86,8 @@ function update_weights!(
         system.log_objective(batch, batch_length, view(system.particles, :, i), view(accuracy, :, i));
     end
 
+    @infiltrate
+
     # Aggregate accuracy
     aggregate_accuracy = accuracy[:];
 
@@ -97,6 +99,8 @@ function update_weights!(
         (aggregate_accuracy,)
     )
 
+    @infiltrate
+    
     # Compute log weights
     system.log_weights .= aggregate_accuracy[:] / system.tolerance_abc;
 end

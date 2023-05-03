@@ -1,6 +1,7 @@
 include("../src/StaticSMC.jl");
 using Main.StaticSMC;
 using Distributions, MessyTimeSeries, Random;
+using Infiltrator;
 
 """
     log_likelihood(
@@ -63,6 +64,8 @@ function update_weights!(
         # Loop over each observation in `batch`
         for (j, observation) in enumerate(batch)
             
+            @infiltrate
+
             # i.i.d.
             if system.markov_order == 0
                 system.log_weights[i] += system.log_objective(observation, view(system.particles, :, i));

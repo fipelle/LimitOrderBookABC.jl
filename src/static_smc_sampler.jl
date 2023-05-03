@@ -117,7 +117,10 @@ function _find_best_tuning(
     
     # Coordinates of the best option
     coordinate_best_option = argmin(distance);
-    
+    println("Search region: $(round.(search_region, digits=1)), Distance: $(round.(distance, digits=1))");
+
+    @infiltrate
+
     # Stopping criterion 1
     if (distance[coordinate_best_option] <= target_ess_tolerance) || (search_region[1]-search_region[3] <= target_ess_tolerance/10)
         return search_region[coordinate_best_option];
@@ -189,10 +192,13 @@ function _ibis_iteration!(
     system.weights = exp.(system.log_weights .- offset);
     system.weights ./= sum(system.weights);
 
-    # Resample and move
-    println(_effective_sample_size(system))
-    if _effective_sample_size(system) < system.num_particles/2
+    @infiltrate
 
+    # Resample and move
+    println("ESS: $(_effective_sample_size(system))")
+    if _effective_sample_size(system) < system.num_particles/2
+        println("Run resampling-move!");
+        
         # Resample the particles and reset the weights
         _resample!(system);
 
@@ -204,6 +210,8 @@ function _ibis_iteration!(
         system.log_weights = log.(system.weights);
     end
 
+    @infiltrate
+    
     # Update history
     push!(system.particles_history, copy(system.particles));
     push!(system.weights_history, copy(system.weights));
@@ -232,6 +240,8 @@ function sample!(
         # Current data
         data = full_data[1:counter];
         
+        @infiltrate
+
         # Iterated batch importance sampling round
         _ibis_iteration!(data, batch_length, system);
         
