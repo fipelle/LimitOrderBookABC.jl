@@ -118,9 +118,7 @@ function _find_best_tuning(
     # Coordinates of the best option
     coordinate_best_option = argmin(distance);
     println("Search region: $(round.(search_region, digits=1)), Distance: $(round.(distance, digits=1))");
-
-    @infiltrate
-
+    
     # Stopping criterion 1
     if (distance[coordinate_best_option] <= target_ess_tolerance) || (search_region[1]-search_region[3] <= target_ess_tolerance/10)
         return search_region[coordinate_best_option];

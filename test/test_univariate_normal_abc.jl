@@ -42,28 +42,6 @@ function log_objective!(
 end
 
 """
-    log_gradient(
-        observation :: Float64, 
-        parameters  :: AbstractVector{Float64}
-    )
-
-Compute the log-gradient.
-"""
-function log_gradient(
-    observation :: Float64, 
-    parameters  :: AbstractVector{Float64}
-)
-    
-    μ = parameters[1];
-    σ² = get_bounded_logit(parameters[2], 0.0, 1000.0);
-
-    return [0.0; 0.0;
-        #-2*(μ-observation);
-        #-2*σ²
-    ]
-end
-
-"""
     update_weights!(
         batch        :: AbstractArray{Float64}, 
         batch_length :: Int64, 
@@ -139,7 +117,6 @@ function test_univariate_normal_smc(N::Int64, M::Int64, num_particles::Int64; μ
             # Functions
             [Normal(0, λ^2); InverseGamma(3, 1)],
             log_objective!,
-            log_gradient,
             update_weights!, 
 
             # Particles and weights

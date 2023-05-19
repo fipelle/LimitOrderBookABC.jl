@@ -15,7 +15,6 @@ mutable struct ParticleSystem
     # Functions
     priors            :: Vector{Distribution{Univariate, Continuous}}
     log_objective     :: Function
-    log_gradient      :: Function
     update_weights!   :: Function
     
     # Particles and weights
