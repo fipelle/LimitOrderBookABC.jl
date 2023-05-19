@@ -66,10 +66,7 @@ end
         system :: ParticleSystem
     )
 
-Rejuvinating step based on the unadjusted Langevin algorithm (ULA).
-
-# References
-- Roberts and Tweedie (1996, 1.4.1)
+Rejuvinating step based on a Metropolis-Hasting kernel.
 """
 function _move!(
     batch  :: AbstractArray{Float64}, 
@@ -164,7 +161,6 @@ Iterated batch importance sampling algorithms: iteration for new batch of data.
 
 # References
 - Chopin (2002, Section 4.1)
-- Roberts and Tweedie (1996, 1.4.1)
 """
 function _ibis_iteration!(
     data         :: Vector{Float64},
