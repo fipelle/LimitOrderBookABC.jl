@@ -77,14 +77,7 @@ function _move!(
 )
 
     for i=1:system.num_particles
-        
-        # Loop over batch
-        for observation in batch
-            system.particles[:, i] .+= system.tolerance_move/2*system.log_gradient(observation, view(system.particles, :, i));
-        end
-        
-        # Random perturbation
-        system.particles[:, i] .+= sqrt(system.tolerance_move)*randn(system.num_parameters);
+        # TBA -> New routine to move system.particles[:, i]
     end
 end
 
