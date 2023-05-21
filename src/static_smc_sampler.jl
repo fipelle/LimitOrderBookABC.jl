@@ -205,8 +205,6 @@ function _ibis_iteration!(
     system.weights = exp.(system.log_weights .- offset);
     system.weights ./= sum(system.weights);
 
-    @infiltrate
-
     # Resample and move
     if _effective_sample_size(system) < system.num_particles/2
         
