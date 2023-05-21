@@ -74,9 +74,7 @@ function update_weights!(
         StaticSMC._effective_sample_size_abc_scaling,
         (system.log_weights, aggregate_accuracy)
     )
-
-    @infiltrate
-    
+        
     # Compute log weights
     system.log_weights .+= aggregate_accuracy / system.tolerance_abc;
 end

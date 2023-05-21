@@ -81,6 +81,29 @@ function _move!(
 end
 
 """
+    _resample_and_move!(
+        system :: ParticleSystem
+    )
+
+Resample and move in the direction of the region with higher weight.
+"""
+function _resample_and_move!(
+    system :: ParticleSystem
+)
+
+    # Estimate first two moments [note: the weights are normalised at this step]
+    exp_particles = mean(system.particles, weights(system.weights), dims=2);
+    var_particles = cov(system.particles, weights(system.weights), 2);
+
+    # Resample particles
+    system.particles .= rand(MvNormal(view(exp_particles, :, 1), var_particles), system.num_particles);
+    
+    # Reset weights
+    system.weights = ones(system.num_particles) / system.num_particles;
+    system.log_weights = log.(system.weights);
+end
+
+"""
     _find_best_tuning(
         target_ess           :: Float64,
         target_ess_tolerance :: Float64,
@@ -188,19 +211,21 @@ function _ibis_iteration!(
     if _effective_sample_size(system) < system.num_particles/2
         println("Run resampling-move!");
         
+        #=
         # Resample the particles and reset the weights
         _resample!(system);
 
         # Rejuvenate the particles
         _move!(batch, system);
-    
+        =#
+
+        _resample_and_move!(system);
+
     # Update `system.log_weights` to reflect normalisation
     else
         system.log_weights = log.(system.weights);
     end
 
-    @infiltrate
-    
     # Update history
     push!(system.particles_history, copy(system.particles));
     push!(system.weights_history, copy(system.weights));
@@ -228,8 +253,6 @@ function sample!(
 
         # Current data
         data = full_data[1:counter];
-        
-        @infiltrate
 
         # Iterated batch importance sampling round
         _ibis_iteration!(data, batch_length, system);

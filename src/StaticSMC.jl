@@ -1,7 +1,8 @@
 module StaticSMC
 
     # Dependencies
-    using Distributions, Distances, Random, StaticArrays, Statistics;
+    using Distributions, Distances, LinearAlgebra, Random, StaticArrays, Statistics;
+    using StatsBase: mean, cov, weights;
     using Infiltrator;
     
     # Local Dependencies
