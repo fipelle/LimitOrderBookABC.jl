@@ -1,6 +1,6 @@
 include("../src/StaticSMC.jl");
 using Main.StaticSMC;
-using Distances, Distributions, MessyTimeSeries, Random, StaticArrays;
+using Distances, Distributions, FileIO, MessyTimeSeries, Random, StaticArrays;
 using Infiltrator;
 
 """
@@ -139,11 +139,17 @@ function test_univariate_normal_smc(N::Int64, M::Int64, num_particles::Int64; μ
     return simulations_output;
 end
 
-simulation_output = test_univariate_normal_smc(1000, 1, 1000);
+# Run simulations
+simulation_output = test_univariate_normal_smc(1000, 500, 1000);
+
+# Store output in JLD2
+FileIO.save("./test/res_test_univariate_normal_abc.jld2", Dict("simulation_output" => simulation_output));
 
 # Explore one simulation at the time
+#=
 using Plots
 vv = 1; # simulation id
 system = simulation_output[vv];
 fig1 = histogram(system.particles[1, :]);
 fig2 = histogram([get_bounded_logit(system.particles[2, i], 0.0, 1000.0) for i=1:1000]);
+=#
