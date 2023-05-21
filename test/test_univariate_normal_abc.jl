@@ -101,6 +101,8 @@ function test_univariate_normal_smc(N::Int64, M::Int64, num_particles::Int64; μ
 
     for i=1:M
 
+        @info("Replication $(i) out of $(M)");
+
         # Current simulated data
         y_i = μ0 .+ σ0*randn(N);
         
@@ -139,4 +141,9 @@ end
 
 simulation_output = test_univariate_normal_smc(1000, 1, 1000);
 
+# Explore one simulation at the time
 using Plots
+vv = 1; # simulation id
+system = simulation_output[vv];
+fig1 = histogram(system.particles[1, :]);
+fig2 = histogram([get_bounded_logit(system.particles[2, i], 0.0, 1000.0) for i=1:1000]);
