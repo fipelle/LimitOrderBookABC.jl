@@ -10,18 +10,20 @@ _effective_sample_size(system  :: ParticleSystem) = _effective_sample_size(syste
 """
     _effective_sample_size_abc_scaling(
         candidate_scaling  :: Float64,
-        aggregate_accuracy :: AbstractVector{Float64},
+        old_log_weights    :: AbstractVector{Float64}, 
+        aggregate_accuracy :: AbstractVector{Float64}
     )
 
 Return ESS associated to `candidate_scaling` having se the log_weights as a function of the `aggregate_accuracy`.
 """
 function _effective_sample_size_abc_scaling(
     candidate_scaling  :: Float64,
-    aggregate_accuracy :: AbstractVector{Float64},
+    old_log_weights    :: AbstractVector{Float64}, 
+    aggregate_accuracy :: AbstractVector{Float64}
 )
 
     # Weights in log-scale
-    log_weights = aggregate_accuracy / candidate_scaling;
+    log_weights = old_log_weights + aggregate_accuracy / candidate_scaling;
 
     # Convert in lin-scale
     offset = maximum(log_weights);

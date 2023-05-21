@@ -64,8 +64,6 @@ function update_weights!(
         system.log_objective(batch, batch_length, view(system.particles, :, i), view(accuracy, :, i));
     end
 
-    @infiltrate
-
     # Aggregate accuracy
     aggregate_accuracy = accuracy[:];
 
@@ -74,13 +72,13 @@ function update_weights!(
         system.num_particles / 10,
         MVector(500.0, 250.5, 1.0),
         StaticSMC._effective_sample_size_abc_scaling,
-        (aggregate_accuracy,)
+        (system.log_weights, aggregate_accuracy)
     )
 
     @infiltrate
     
     # Compute log weights
-    system.log_weights .= aggregate_accuracy[:] / system.tolerance_abc;
+    system.log_weights .+= aggregate_accuracy / system.tolerance_abc;
 end
 
 """
@@ -120,7 +118,10 @@ function test_univariate_normal_smc(N::Int64, M::Int64, num_particles::Int64; μ
             update_weights!, 
 
             # Particles and weights
-            [rand(Normal(0, λ^2), 1, num_particles); rand(InverseGamma(3, 1), 1, num_particles)],
+            [
+                rand(Normal(0, λ^2), 1, num_particles); 
+                [get_unbounded_logit(σ², 0.0, 1000.0) for σ² in rand(InverseGamma(3, 1), num_particles)]'
+            ],
             log.(ones(num_particles) / num_particles),
             ones(num_particles) / num_particles,
             Vector{Matrix{Float64}}(),
