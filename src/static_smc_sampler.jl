@@ -134,7 +134,6 @@ function _find_best_tuning(
     
     # Coordinates of the best option
     coordinate_best_option = argmin(distance);
-    println("Search region: $(round.(search_region, digits=1)), Distance: $(round.(distance, digits=1))");
     
     # Stopping criterion 1
     if (distance[coordinate_best_option] <= target_ess_tolerance) || (search_region[1]-search_region[3] <= target_ess_tolerance/10)
@@ -209,9 +208,7 @@ function _ibis_iteration!(
     @infiltrate
 
     # Resample and move
-    println("ESS: $(_effective_sample_size(system))")
     if _effective_sample_size(system) < system.num_particles/2
-        println("Run resampling-move!");
         
         #=
         # Resample the particles and reset the weights
