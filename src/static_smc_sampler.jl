@@ -34,6 +34,7 @@ function _effective_sample_size_abc_scaling(
     return _effective_sample_size(weights);
 end
 
+#=
 """
     _resample!(system::ParticleSystem)
 
@@ -79,6 +80,7 @@ function _move!(
         # TBA -> New routine to move system.particles[:, i]
     end
 end
+=#
 
 """
     _resample_and_move!(
