@@ -25,7 +25,7 @@ end
 
 """
     log_objective!(
-        batch        :: AbstractArray{Float64}, 
+        batch        :: SnapshotL2,
         batch_length :: Int64, 
         parameters   :: AbstractVector{Float64},
         accuracy     :: AbstractVector{Float64};
@@ -35,18 +35,27 @@ end
 Compute the log-objective.
 """
 function log_objective!(
-    batch        :: AbstractArray{Float64}, 
+    batch        :: SnapshotL2,
     batch_length :: Int64, 
     parameters   :: AbstractVector{Float64},
     accuracy     :: AbstractVector{Float64};
     no_sim       :: Int64 = 1000
 )
     
-    # Retrieve current parameters configuration
+    # Noise agents relative to the cumulative number of value and momentum agents
+    noise_agents_scale = get_bounded_logit(parameters[3], 0.0, 100.0);
+
+    # Number of agents
+    num_value_agents    = fld(get_bounded_logit(parameters[1], 0.0, 200.0), 1);
+    num_momentum_agents = fld(get_bounded_logit(parameters[2], 0.0, 200.0), 1);
+    num_noise_agents    = fld(noise_agents_scale*(num_value_agents+num_momentum_agents), 1);
+
+    # Kwargs for AbidesMarkets
     build_config_kwargs = (
-        num_momentum_agents = get_bounded_logit(parameters[1], 0.0, 200.0), 
-        num_value_agents    = get_bounded_logit(parameters[2], 0.0, 200.0),
-        num_noise_agents    = get_bounded_logit(parameters[3], 0.0, 2000.0)
+        num_value_agents    = num_value_agents,
+        num_momentum_agents = num_momentum_agents, 
+        num_noise_agents    = num_noise_agents,
+        end_time            = batch.times[end] # end at the same time of the current batch
     );
 
     # Aggregate L2 data
@@ -114,19 +123,19 @@ This test estimates the number of momentum, value and noise agents via SMC and b
 - σ² ~ InverseGamma(3, 1)
 """
 function test_abides_basic(
-    N                   :: Int64, 
     M                   :: Int64, 
     num_particles       :: Int64; 
-    num_momentum_agents :: Int64 = 100,
-    num_value_agents    :: Int64 = 100,
+    num_value_agents    :: Int64 = 102,
+    num_momentum_agents :: Int64 = 12,
     num_noise_agents    :: Int64 = 1000
 )
 
     # Kwargs for AbidesMarkets
     build_config_kwargs = (
-        num_momentum_agents = num_momentum_agents, 
         num_value_agents    = num_value_agents,
-        num_noise_agents    = num_noise_agents
+        num_momentum_agents = num_momentum_agents, 
+        num_noise_agents    = num_noise_agents,
+        end_time            = "16:00:00"
     );
 
     # Set seed for reproducibility
@@ -142,8 +151,9 @@ function test_abides_basic(
         @info("Replication $(i) out of $(M)");
 
         # Current simulated data
-        y_i = generate_abides_simulation(build_config_kwargs);
-        
+        y_i = generate_abides_simulation(merge((seed=i,), build_config_kwargs));
+        N_i = size(y_i.asks, 1);
+
         # Setup particle system
         system = ParticleSystem(
             0,
@@ -151,14 +161,19 @@ function test_abides_basic(
             num_particles,
             
             # Functions
-            [Normal(0, λ^2); InverseGamma(3, 1)],
+            [
+                DiscreteUniform(1, 200); # value agents
+                DiscreteUniform(1, 200); # momentum agents
+                Gamma(10, 1)             # noise agents as no. times the sum of value and momentum agents
+            ]
             log_objective!,
             update_weights!, 
 
             # Particles and weights
             [
-                rand(Normal(0, λ^2), 1, num_particles); 
-                [get_unbounded_logit(σ², 0.0, 1000.0) for σ² in rand(InverseGamma(3, 1), num_particles)]'
+                [get_unbounded_logit(x, 0.0, 200.0) for x in rand(DiscreteUniform(1, 200), num_particles)]' # value agents
+                [get_unbounded_logit(x, 0.0, 200.0) for x in rand(DiscreteUniform(1, 200), num_particles)]' # momentum agents
+                [get_unbounded_logit(x, 0.0, 100.0) for x in rand(Gamma(10, 1), num_particles)]'            # noise agents as no. times the sum of value and momentum agents
             ],
             log.(ones(num_particles) / num_particles),
             ones(num_particles) / num_particles,
@@ -170,7 +185,7 @@ function test_abides_basic(
             0.1
         );
         
-        StaticSMC.sample!(y_i, fld(N, 10), system);
+        StaticSMC.sample!(y_i, fld(N_i, 10), system);
         push!(simulations_output, system);
     end
 
