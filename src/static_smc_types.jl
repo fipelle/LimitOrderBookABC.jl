@@ -13,7 +13,7 @@ mutable struct ParticleSystem
     num_particles     :: Int64
     
     # Functions
-    priors            :: Vector{Distribution{Univariate, Continuous}}
+    priors            :: Vector{Distribution}
     log_objective     :: Function
     update_weights!   :: Function
     
