@@ -43,7 +43,7 @@ function log_objective!(
 )
     
     # Noise agents relative to the cumulative number of value and momentum agents
-    noise_agents_scale = get_bounded_logit(parameters[3], 0.0, 201.0);
+    noise_agents_scale = get_bounded_logit(parameters[3], 0.0, 100.0);
 
     # Number of agents
     num_value_agents    = fld(get_bounded_logit(parameters[1], 0.0, 201.0), 1);
@@ -164,7 +164,7 @@ function test_abides_basic(
             [
                 DiscreteUniform(1, 200); # value agents
                 DiscreteUniform(1, 200); # momentum agents
-                Gamma(10, 1)             # noise agents as no. times the sum of value and momentum agents
+                Gamma(5, 1)              # noise agents as no. times the sum of value and momentum agents
             ],
             log_objective!,
             update_weights!, 
@@ -173,7 +173,7 @@ function test_abides_basic(
             [
                 [get_unbounded_logit(Float64(x), 0.0, 201.0) for x in rand(DiscreteUniform(1, 200), num_particles)]' # value agents
                 [get_unbounded_logit(Float64(x), 0.0, 201.0) for x in rand(DiscreteUniform(1, 200), num_particles)]' # momentum agents
-                [get_unbounded_logit(Float64(x), 0.0, 201.0) for x in rand(Gamma(10, 1), num_particles)]'            # noise agents as no. times the sum of value and momentum agents
+                [get_unbounded_logit(Float64(x), 0.0, 100.0) for x in rand(Gamma(5, 1), num_particles)]'             # noise agents as no. times the sum of value and momentum agents
             ],
             log.(ones(num_particles) / num_particles),
             ones(num_particles) / num_particles,
@@ -193,10 +193,10 @@ function test_abides_basic(
 end
 
 # Run simulations
-simulation_output = test_univariate_normal_smc(1000, 500, 1000);
+simulation_output = test_abides_basic(1000, 1, 1000);
 
 # Store output in JLD2
-FileIO.save("./test/res_test_univariate_normal_abc.jld2", Dict("simulation_output" => simulation_output));
+FileIO.save("./test/res_test_abides_basic.jld2", Dict("simulation_output" => simulation_output));
 
 # Explore one simulation at the time
 #=
