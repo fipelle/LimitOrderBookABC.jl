@@ -117,9 +117,9 @@ function test_abides_basic(
     N                   :: Int64, 
     M                   :: Int64, 
     num_particles       :: Int64; 
-    num_momentum_agents :: Int64,
-    num_value_agents    :: Int64,
-    num_noise_agents    :: Int64
+    num_momentum_agents :: Int64 = 100,
+    num_value_agents    :: Int64 = 100,
+    num_noise_agents    :: Int64 = 1000
 )
 
     # Kwargs for AbidesMarkets
