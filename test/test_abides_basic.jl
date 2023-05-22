@@ -43,13 +43,20 @@ function log_objective!(
 )
     
     # Retrieve current parameters configuration
-    μ = parameters[1];
-    σ² = get_bounded_logit(parameters[2], 0.0, 1000.0);
-    
+    build_config_kwargs = (
+        num_momentum_agents = get_bounded_logit(parameters[1], 0.0, 200.0), 
+        num_value_agents    = get_bounded_logit(parameters[2], 0.0, 200.0),
+        num_noise_agents    = get_bounded_logit(parameters[3], 0.0, 2000.0)
+    );
+
+    # Aggregate L2 data
+    batch_per_minute = aggregate_L2_snapshot_eop(batch, Minute(1));
+
     for i=1:no_sim
 
         # Simulate data
-        batch_simulated = μ .+ sqrt(σ²)*randn(batch_length);
+        simulated_L2 = generate_abides_simulation(build_config_kwargs);
+        simulated_batch_per_minute = aggregate_L2_snapshot_eop(L2_simulated, Minute(1));
         
         # Compute accuracy
         accuracy[1] += -euclidean(batch, batch_simulated);
@@ -100,16 +107,27 @@ function update_weights!(
 end
 
 """
-This test estimates the mean and standard deviation of normally distributed data with a static SMC.
-
-# Data
-The data is such that each y_{i} ~ N(μ, σ^2) for i=1, ..., T.
+This test estimates the number of momentum, value and noise agents via SMC and building on ABIDES.
 
 # Priors
 - μ ~ Normal(0, λ^2)
 - σ² ~ InverseGamma(3, 1)
 """
-function test_univariate_normal_smc(N::Int64, M::Int64, num_particles::Int64; μ0::Float64=0.0, σ0::Float64=1.0, λ::Float64=10.0)
+function test_abides_basic(
+    N                   :: Int64, 
+    M                   :: Int64, 
+    num_particles       :: Int64; 
+    num_momentum_agents :: Int64,
+    num_value_agents    :: Int64,
+    num_noise_agents    :: Int64
+)
+
+    # Kwargs for AbidesMarkets
+    build_config_kwargs = (
+        num_momentum_agents = num_momentum_agents, 
+        num_value_agents    = num_value_agents,
+        num_noise_agents    = num_noise_agents
+    );
 
     # Set seed for reproducibility
     Random.seed!(1);
@@ -124,7 +142,7 @@ function test_univariate_normal_smc(N::Int64, M::Int64, num_particles::Int64; μ
         @info("Replication $(i) out of $(M)");
 
         # Current simulated data
-        y_i = μ0 .+ σ0*randn(N);
+        y_i = generate_abides_simulation(build_config_kwargs);
         
         # Setup particle system
         system = ParticleSystem(
