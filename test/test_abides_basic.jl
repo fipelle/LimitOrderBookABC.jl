@@ -41,7 +41,9 @@ function log_objective!(
     accuracy     :: AbstractVector{Float64};
     no_sim       :: Int64 = 1000
 )
-    
+
+    @infiltrate
+
     # Noise agents relative to the cumulative number of value and momentum agents
     noise_agents_scale = get_bounded_logit(parameters[3], 0.0, 100.0);
 
@@ -49,6 +51,8 @@ function log_objective!(
     num_value_agents    = fld(get_bounded_logit(parameters[1], 0.0, 201.0), 1);
     num_momentum_agents = fld(get_bounded_logit(parameters[2], 0.0, 201.0), 1);
     num_noise_agents    = fld(noise_agents_scale*(num_value_agents+num_momentum_agents), 1);
+    
+    @infiltrate
 
     # Kwargs for AbidesMarkets
     build_config_kwargs = (
@@ -193,7 +197,7 @@ function test_abides_basic(
 end
 
 # Run simulations
-simulation_output = test_abides_basic(1000, 1, 1000);
+simulation_output = test_abides_basic(1, 1000);
 
 # Store output in JLD2
 FileIO.save("./test/res_test_abides_basic.jld2", Dict("simulation_output" => simulation_output));

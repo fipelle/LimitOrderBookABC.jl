@@ -178,7 +178,7 @@ end
 
 """
     _ibis_iteration!(
-        data         :: Union{L2Snapshot, Vector{Float64}},
+        data         :: Union{SnapshotL2, Vector{Float64}},
         batch_length :: Int64,
         system       :: ParticleSystem
     )
@@ -189,7 +189,7 @@ Iterated batch importance sampling algorithm: iteration for new batch of data.
 - Chopin (2002, Section 4.1)
 """
 function _ibis_iteration!(
-    data         :: Union{L2Snapshot, Vector{Float64}},
+    data         :: Union{SnapshotL2, Vector{Float64}},
     batch_length :: Int64,
     system       :: ParticleSystem
 )
@@ -230,7 +230,7 @@ end
 
 """
     sample!(
-        full_data    :: Union{L2Snapshot, Vector{Float64}},
+        full_data    :: Union{SnapshotL2, Vector{Float64}},
         batch_length :: Int64,
         system       :: ParticleSystem;
     )
@@ -238,7 +238,7 @@ end
 Run batch importance sampling algorithm.
 """
 function sample!(
-    full_data    :: Union{L2Snapshot, Vector{Float64}},
+    full_data    :: Union{SnapshotL2, Vector{Float64}},
     batch_length :: Int64,
     system       :: ParticleSystem;
 )
