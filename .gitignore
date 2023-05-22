@@ -6,3 +6,6 @@
 *.csv
 *.xls
 *.xlsx
+
+# Ignore ABIDES log folder
+log/
