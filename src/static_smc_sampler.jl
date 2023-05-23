@@ -229,14 +229,14 @@ function _ibis_iteration!(
 end
 
 """
-    get_current_batch(
+    _get_current_batch(
         full_data :: SnapshotL2,
         counter   :: Int64
     )
 
 Get current batch from the LOB in `full_data`.
 """
-function get_current_batch(
+function _get_current_batch(
     full_data :: SnapshotL2,
     counter   :: Int64
 )
@@ -248,14 +248,14 @@ function get_current_batch(
 end
 
 """
-    get_current_batch(
+    _get_current_batch(
         full_data :: Vector{Float64},
         counter   :: Int64
     )
 
 Get current batch from `full_data` vector.
 """
-function get_current_batch(
+function _get_current_batch(
     full_data :: Vector{Float64},
     counter   :: Int64
 )
@@ -284,7 +284,7 @@ function sample!(
     for t=1:fld(length(full_data), batch_length)
 
         # Current data
-        data = get_current_batch(full_data, counter);
+        data = _get_current_batch(full_data, counter);
 
         # Iterated batch importance sampling round
         _ibis_iteration!(data, batch_length, system);
