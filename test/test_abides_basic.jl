@@ -1,6 +1,6 @@
 include("../src/StaticSMC.jl");
 using Main.StaticSMC;
-using AbidesMarkets, Dates, Distances, Distributions, FileIO, MessyTimeSeries, Random, StaticArrays;
+using AbidesMarkets, Dates, Distances, Distributions, FileIO, MessyTimeSeries, Random, StaticArrays, Suppressor;
 using Infiltrator;
 
 """
@@ -68,7 +68,10 @@ function log_objective!(
     for i=1:no_sim
 
         # Simulate data
-        simulated_data = generate_abides_simulation(build_config_kwargs);
+        local simulated_data;
+        @suppress begin
+            simulated_data = generate_abides_simulation(merge((seed=1000+i,), build_config_kwargs));
+        end
 
         # Get coordinates to align `simulated_batch` with `batch`
         is_simulated_batch = simulated_data.times .>= batch.times[1];
@@ -87,6 +90,8 @@ function log_objective!(
         bids_residuals = prod(batch_per_minute.bids, dims=3) .- prod(simulated_batch_per_minute.bids, dims=3);
         asks_residuals = prod(batch_per_minute.asks, dims=3) .- prod(simulated_batch_per_minute.asks, dims=3);
         
+        @infiltrate
+
         # Compute accuracy
         accuracy[1] += sum(skipmissing(bids_residuals.^2));
         accuracy[1] += sum(skipmissing(asks_residuals.^2));
@@ -170,9 +175,12 @@ function test_abides_basic(
         @info("Replication $(i) out of $(M)");
 
         # Current simulated data
-        y_i = generate_abides_simulation(merge((seed=i,), build_config_kwargs));
+        local y_i;
+        @suppress begin
+            y_i = generate_abides_simulation(merge((seed=i,), build_config_kwargs));
+        end
         N_i = size(y_i.asks, 1);
-
+        
         # Setup particle system
         system = ParticleSystem(
             0,
