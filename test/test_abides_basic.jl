@@ -83,7 +83,7 @@ end
 
 """
     update_weights!(
-        batch        :: AbstractArray{Float64}, 
+        batch        :: SnapshotL2,
         batch_length :: Int64, 
         system       :: ParticleSystem
     )
@@ -91,7 +91,7 @@ end
 Update weights within ibis iteration.
 """
 function update_weights!(
-    batch        :: AbstractArray{Float64}, 
+    batch        :: SnapshotL2,
     batch_length :: Int64, 
     system       :: ParticleSystem
 )
