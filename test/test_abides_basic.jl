@@ -1,6 +1,6 @@
 include("../src/StaticSMC.jl");
 using Main.StaticSMC;
-using AbidesMarkets, Distances, Distributions, FileIO, MessyTimeSeries, Random, StaticArrays;
+using AbidesMarkets, Dates, Distances, Distributions, FileIO, MessyTimeSeries, Random, StaticArrays;
 using Infiltrator;
 
 """
@@ -48,9 +48,9 @@ function log_objective!(
     noise_agents_scale = get_bounded_logit(parameters[3], 0.0, 100.0);
 
     # Number of agents
-    num_value_agents    = fld(get_bounded_logit(parameters[1], 0.0, 201.0), 1);
-    num_momentum_agents = fld(get_bounded_logit(parameters[2], 0.0, 201.0), 1);
-    num_noise_agents    = fld(noise_agents_scale*(num_value_agents+num_momentum_agents), 1);
+    num_value_agents    = floor(Int64, get_bounded_logit(parameters[1], 0.0, 201.0));
+    num_momentum_agents = floor(Int64, get_bounded_logit(parameters[2], 0.0, 201.0));
+    num_noise_agents    = floor(Int64, noise_agents_scale*(num_value_agents+num_momentum_agents));
     
     @infiltrate
 
@@ -59,22 +59,37 @@ function log_objective!(
         num_value_agents    = num_value_agents,
         num_momentum_agents = num_momentum_agents, 
         num_noise_agents    = num_noise_agents,
-        end_time            = batch.times[end] # end at the same time of the current batch
+        end_time            = Dates.format(batch.times[end], "HH:MM:SS") # end at the same time of the current batch
     );
 
-    # Aggregate L2 data
+    # Aggregate batch
     batch_per_minute = aggregate_L2_snapshot_eop(batch, Minute(1));
 
     for i=1:no_sim
 
         # Simulate data
-        simulated_L2 = generate_abides_simulation(build_config_kwargs);
-        simulated_batch_per_minute = aggregate_L2_snapshot_eop(L2_simulated, Minute(1));
+        simulated_data = generate_abides_simulation(build_config_kwargs);
+
+        # Get coordinates to align `simulated_batch` with `batch`
+        is_simulated_batch = simulated_data.times .>= batch.times[1];
+
+        # Get `simulated_batch`
+        simulated_batch = SnapshotL2(
+            simulated_data.times[is_simulated_batch],
+            simulated_data.bids[is_simulated_batch, :, :],
+            simulated_data.asks[is_simulated_batch, :, :]
+        );
+
+        # Aggregate `simulated_batch`
+        simulated_batch_per_minute = aggregate_L2_snapshot_eop(simulated_batch, Minute(1));
+        
+        # Residuals
+        bids_residuals = prod(batch_per_minute.bids, dims=3) .- prod(simulated_batch_per_minute.bids, dims=3);
+        asks_residuals = prod(batch_per_minute.asks, dims=3) .- prod(simulated_batch_per_minute.asks, dims=3);
         
         # Compute accuracy
-        accuracy[1] += -euclidean(batch, batch_simulated);
-        #accuracy[1] += -euclidean(mean(batch), mean(batch_simulated));
-        #accuracy[2] += -euclidean(std(batch), std(batch_simulated));
+        accuracy[1] += sum(skipmissing(bids_residuals.^2));
+        accuracy[1] += sum(skipmissing(asks_residuals.^2));
     end
 
     # Take average across simulations
