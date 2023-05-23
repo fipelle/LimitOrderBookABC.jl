@@ -29,7 +29,7 @@ end
         batch_length :: Int64, 
         parameters   :: AbstractVector{Float64},
         accuracy     :: AbstractVector{Float64};
-        no_sim       :: Int64 = 1000
+        no_sim       :: Int64 = 64
     )
 
 Compute the log-objective.
@@ -39,7 +39,7 @@ function log_objective!(
     batch_length :: Int64, 
     parameters   :: AbstractVector{Float64},
     accuracy     :: AbstractVector{Float64};
-    no_sim       :: Int64 = 1000
+    no_sim       :: Int64 = 64
 )
 
     @infiltrate
@@ -65,8 +65,12 @@ function log_objective!(
     # Aggregate batch
     batch_per_minute = aggregate_L2_snapshot_eop(batch, Minute(1));
 
-    for i=1:no_sim
+    # Initialise multi-threaded loop output
+    accuracy_threaded = zeros(no_sim);
 
+    # Loop over `no_sim`
+    Threads.@threads for i=1:no_sim
+        println(i)
         # Simulate data
         local simulated_data;
         @suppress begin
@@ -89,16 +93,14 @@ function log_objective!(
         # Residuals
         bids_residuals = prod(batch_per_minute.bids, dims=3) .- prod(simulated_batch_per_minute.bids, dims=3);
         asks_residuals = prod(batch_per_minute.asks, dims=3) .- prod(simulated_batch_per_minute.asks, dims=3);
-        
-        @infiltrate
 
         # Compute accuracy
-        accuracy[1] += sum(skipmissing(bids_residuals.^2));
-        accuracy[1] += sum(skipmissing(asks_residuals.^2));
+        accuracy_threaded[i] = sum(skipmissing(bids_residuals.^2)) + sum(skipmissing(asks_residuals.^2));
     end
 
     # Take average across simulations
-    accuracy ./= no_sim;
+    accuracy[1] = mean(accuracy_threaded);
+    @infiltrate
 end
 
 """
