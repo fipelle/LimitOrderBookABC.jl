@@ -232,8 +232,19 @@ function _ibis_iteration!(
     system       :: ParticleSystem
 )
 
-    # Generate view on current batch
-    batch = @view data[end-batch_length+1:end];
+    # Data length
+    data_length = length(data);
+    
+    # Extract current batch from `data`
+    batch = _get_current_sample(
+        data,
+        data_length,
+        start = data_length-batch_length+1
+    );
+    
+    @infiltrate
+
+    #@view data[end-batch_length+1:end];
 
     # Update the weights
     system.update_weights!(batch, batch_length, system);
