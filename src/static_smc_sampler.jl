@@ -1,4 +1,38 @@
 """
+    _get_current_sample(
+        full_data :: SnapshotL2,
+        counter   :: Int64
+    )
+
+Get current batch from the LOB in `full_data`.
+"""
+function _get_current_sample(
+    full_data :: SnapshotL2,
+    counter   :: Int64
+)
+    return SnapshotL2(
+        full_data.times[1:counter],
+        full_data.bids[1:counter, :, :],
+        full_data.asks[1:counter, :, :],
+    );
+end
+
+"""
+    _get_current_sample(
+        full_data :: Vector{Float64},
+        counter   :: Int64
+    )
+
+Get current batch from `full_data` vector.
+"""
+function _get_current_sample(
+    full_data :: Vector{Float64},
+    counter   :: Int64
+)
+    return full_data[1:counter];
+end
+
+"""
     _effective_sample_size(weights :: AbstractVector{Float64})    
     _effective_sample_size(system  :: ParticleSystem)
 
@@ -226,40 +260,6 @@ function _ibis_iteration!(
     # Update history
     push!(system.particles_history, copy(system.particles));
     push!(system.weights_history, copy(system.weights));
-end
-
-"""
-    _get_current_sample(
-        full_data :: SnapshotL2,
-        counter   :: Int64
-    )
-
-Get current batch from the LOB in `full_data`.
-"""
-function _get_current_sample(
-    full_data :: SnapshotL2,
-    counter   :: Int64
-)
-    return SnapshotL2(
-        full_data.times[1:counter],
-        full_data.bids[1:counter, :, :],
-        full_data.asks[1:counter, :, :],
-    );
-end
-
-"""
-    _get_current_sample(
-        full_data :: Vector{Float64},
-        counter   :: Int64
-    )
-
-Get current batch from `full_data` vector.
-"""
-function _get_current_sample(
-    full_data :: Vector{Float64},
-    counter   :: Int64
-)
-    return full_data[1:counter];
 end
 
 """
