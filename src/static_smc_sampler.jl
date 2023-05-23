@@ -1,35 +1,39 @@
 """
     _get_current_sample(
         full_data :: SnapshotL2,
-        counter   :: Int64
+        counter   :: Int64;
+        start     :: Int64 = 1
     )
 
 Get current batch from the LOB in `full_data`.
 """
 function _get_current_sample(
     full_data :: SnapshotL2,
-    counter   :: Int64
+    counter   :: Int64;
+    start     :: Int64 = 1
 )
     return SnapshotL2(
-        full_data.times[1:counter],
-        full_data.bids[1:counter, :, :],
-        full_data.asks[1:counter, :, :],
+        full_data.times[start:counter],
+        full_data.bids[start:counter, :, :],
+        full_data.asks[start:counter, :, :],
     );
 end
 
 """
     _get_current_sample(
         full_data :: Vector{Float64},
-        counter   :: Int64
+        counter   :: Int64;
+        start     :: Int64 = 1
     )
 
 Get current batch from `full_data` vector.
 """
 function _get_current_sample(
     full_data :: Vector{Float64},
-    counter   :: Int64
+    counter   :: Int64;
+    start     :: Int64 = 1
 )
-    return full_data[1:counter];
+    return full_data[start:counter];
 end
 
 """
@@ -283,7 +287,7 @@ function sample!(
     # Loop over time
     for t=1:fld(length(full_data), batch_length)
 
-        # Current data
+        # Current sample
         data = _get_current_sample(full_data, counter);
 
         # Iterated batch importance sampling round
