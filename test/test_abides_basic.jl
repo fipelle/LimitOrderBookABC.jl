@@ -29,7 +29,7 @@ end
         batch_length :: Int64, 
         parameters   :: AbstractVector{Float64},
         accuracy     :: AbstractVector{Float64};
-        no_sim       :: Int64 = 64
+        no_sim       :: Int64 = 1
     )
 
 Compute the log-objective.
@@ -39,10 +39,8 @@ function log_objective!(
     batch_length :: Int64, 
     parameters   :: AbstractVector{Float64},
     accuracy     :: AbstractVector{Float64};
-    no_sim       :: Int64 = 64
+    no_sim       :: Int64 = 1
 )
-
-    @infiltrate
 
     # Noise agents relative to the cumulative number of value and momentum agents
     noise_agents_scale = get_bounded_logit(parameters[3], 0.0, 100.0);
@@ -52,8 +50,6 @@ function log_objective!(
     num_momentum_agents = floor(Int64, get_bounded_logit(parameters[2], 0.0, 201.0));
     num_noise_agents    = floor(Int64, noise_agents_scale*(num_value_agents+num_momentum_agents));
     
-    @infiltrate
-
     # Kwargs for AbidesMarkets
     build_config_kwargs = (
         num_value_agents    = num_value_agents,
@@ -66,11 +62,11 @@ function log_objective!(
     batch_per_minute = aggregate_L2_snapshot_eop(batch, Minute(1));
 
     # Initialise multi-threaded loop output
-    accuracy_threaded = zeros(no_sim);
+    accuracy_sim = zeros(no_sim);
 
     # Loop over `no_sim`
-    Threads.@threads for i=1:no_sim
-        println(i)
+    for i=1:no_sim
+
         # Simulate data
         local simulated_data;
         @suppress begin
@@ -95,12 +91,11 @@ function log_objective!(
         asks_residuals = prod(batch_per_minute.asks, dims=3) .- prod(simulated_batch_per_minute.asks, dims=3);
 
         # Compute accuracy
-        accuracy_threaded[i] = sum(skipmissing(bids_residuals.^2)) + sum(skipmissing(asks_residuals.^2));
+        accuracy_sim[i] = sum(skipmissing(bids_residuals.^2)) + sum(skipmissing(asks_residuals.^2));
     end
 
     # Take average across simulations
-    accuracy[1] = mean(accuracy_threaded);
-    @infiltrate
+    accuracy[1] = mean(accuracy_sim);
 end
 
 """
@@ -122,9 +117,11 @@ function update_weights!(
     accuracy = zeros(length(system.tolerance_abc), system.num_particles);
 
     # Loop over each particle
-    for i=1:system.num_particles
+    for i=1:system.num_particles # Threads.@threads 
         system.log_objective(batch, batch_length, view(system.particles, :, i), view(accuracy, :, i));
     end
+
+    @infiltrate
 
     # Aggregate accuracy
     aggregate_accuracy = accuracy[:];
@@ -136,7 +133,7 @@ function update_weights!(
         StaticSMC._effective_sample_size_abc_scaling,
         (system.log_weights, aggregate_accuracy)
     )
-        
+    
     # Compute log weights
     system.log_weights .+= aggregate_accuracy / system.tolerance_abc;
 end
