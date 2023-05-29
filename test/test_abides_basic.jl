@@ -1,9 +1,5 @@
-# On all workers
-using Distributed;
-@everywhere include("../src/StaticSMC.jl");
-@everywhere using AbidesMarkets, Dates, Main.StaticSMC, Suppressor;
-
-# Main worker
+include("../src/StaticSMC.jl");
+using AbidesMarkets, Dates, Main.StaticSMC, Suppressor;
 using Distributions, FileIO, MessyTimeSeries, Random, StaticArrays;
 using Infiltrator;
 
@@ -64,13 +60,10 @@ function log_objective(
     no_sim       :: Int64 = 1
 )
 
-    # Noise agents relative to the cumulative number of value and momentum agents
-    noise_agents_scale = get_bounded_logit(parameters[3], 0.0, 100.0);
-
     # Number of agents
     num_value_agents    = floor(Int64, get_bounded_logit(parameters[1], 0.0, 201.0));
     num_momentum_agents = floor(Int64, get_bounded_logit(parameters[2], 0.0, 201.0));
-    num_noise_agents    = floor(Int64, noise_agents_scale*(num_value_agents+num_momentum_agents));
+    num_noise_agents    = floor(Int64, get_bounded_logit(parameters[3], 399.0, 2001.0));
     
     # Kwargs for AbidesMarkets
     build_config_kwargs = (
@@ -131,13 +124,13 @@ function update_weights!(
     system       :: ParticleSystem
 )
 
-    ## Deprecated code to initialise `accuracy` - I am leaving it here for ref on dimensions
-    # accuracy = zeros(length(system.tolerance_abc), system.num_particles);
+    # Initialise `accuracy`
+    accuracy = zeros(length(system.tolerance_abc), system.num_particles);
 
     # Loop over each particle
-    accuracy = @distributed (+) for i=1:system.num_particles
+    accuracy = Threads.@threads for i=1:system.num_particles
         println(i)
-        system.log_objective(batch, batch_length, view(system.particles, :, i));
+        accuracy[i] = system.log_objective(batch, batch_length, view(system.particles, :, i));
     end
     accuracy /= system.num_particles;
 
@@ -160,10 +153,6 @@ end
 
 """
 This test estimates the number of momentum, value and noise agents via SMC and building on ABIDES.
-
-# Priors
-- μ ~ Normal(0, λ^2)
-- σ² ~ InverseGamma(3, 1)
 """
 function test_abides_basic(
     M                   :: Int64, 
@@ -180,6 +169,13 @@ function test_abides_basic(
         num_noise_agents    = num_noise_agents,
         end_time            = "16:00:00"
     );
+
+    # Priors
+    priors = [
+        DiscreteUniform(1,    200); # no. of value agents
+        DiscreteUniform(1,    200); # no. of momentum agents
+        DiscreteUniform(400, 2000); # no. of noise agents
+    ];
 
     # Set seed for reproducibility
     Random.seed!(1);
@@ -207,19 +203,15 @@ function test_abides_basic(
             num_particles,
             
             # Functions
-            [
-                DiscreteUniform(1, 200); # value agents
-                DiscreteUniform(1, 200); # momentum agents
-                Gamma(5, 1)              # noise agents as no. times the sum of value and momentum agents
-            ],
+            priors,
             log_objective,
             update_weights!, 
 
             # Particles and weights
             [
-                [get_unbounded_logit(Float64(x), 0.0, 201.0) for x in rand(DiscreteUniform(1, 200), num_particles)]' # value agents
-                [get_unbounded_logit(Float64(x), 0.0, 201.0) for x in rand(DiscreteUniform(1, 200), num_particles)]' # momentum agents
-                [get_unbounded_logit(Float64(x), 0.0, 100.0) for x in rand(Gamma(5, 1), num_particles)]'             # noise agents as no. times the sum of value and momentum agents
+                [get_unbounded_logit(Float64(x), 0.0, 201.0) for x in rand(priors[1], num_particles)]'    # no. of value agents
+                [get_unbounded_logit(Float64(x), 0.0, 201.0) for x in rand(priors[2], num_particles)]'    # no. of momentum agents
+                [get_unbounded_logit(Float64(x), 399.0, 2001.0) for x in rand(priors[3], num_particles)]' # no. of noise agents
             ],
             log.(ones(num_particles) / num_particles),
             ones(num_particles) / num_particles,
