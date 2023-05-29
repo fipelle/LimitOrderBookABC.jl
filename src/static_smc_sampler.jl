@@ -242,8 +242,6 @@ function _ibis_iteration!(
         start = data_length-batch_length+1
     );
     
-    @infiltrate
-
     #@view data[end-batch_length+1:end];
 
     # Update the weights

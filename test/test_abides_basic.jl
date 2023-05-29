@@ -1,6 +1,10 @@
-include("../src/StaticSMC.jl");
-using Main.StaticSMC;
-using AbidesMarkets, Dates, Distances, Distributions, FileIO, MessyTimeSeries, Random, StaticArrays, Suppressor;
+# On all workers
+using Distributed;
+@everywhere include("../src/StaticSMC.jl");
+@everywhere using AbidesMarkets, Dates, Main.StaticSMC, Suppressor;
+
+# Main worker
+using Distributions, FileIO, MessyTimeSeries, Random, StaticArrays;
 using Infiltrator;
 
 """
@@ -24,21 +28,39 @@ function generate_abides_simulation(build_config_kwargs::NamedTuple; nlevels::In
 end
 
 """
-    log_objective!(
+    get_batch_best(batch::SnapshotL2)
+
+Get best price from L2 snapshot.
+"""
+function get_batch_best(batch::SnapshotL2)
+    
+    # Aggregate batch
+    batch_per_minute = aggregate_L2_snapshot_eop(batch, Minute(1));
+
+    # Best price per minute
+    batch_L1_bids = view(batch_per_minute.bids, :, 1, :);
+    batch_L1_asks = view(batch_per_minute.asks, :, 1, :);
+    batch_best = prod(batch_L1_bids, dims=2) + prod(batch_L1_asks, dims=2);
+    batch_best ./= view(batch_L1_bids, :, 2) + view(batch_L1_asks, :, 2);
+
+    # Return best price per minute
+    return batch_best;
+end
+
+"""
+    log_objective(
         batch        :: SnapshotL2,
         batch_length :: Int64, 
-        parameters   :: AbstractVector{Float64},
-        accuracy     :: AbstractVector{Float64};
+        parameters   :: AbstractVector{Float64};
         no_sim       :: Int64 = 1
     )
 
 Compute the log-objective.
 """
-function log_objective!(
+function log_objective(
     batch        :: SnapshotL2,
     batch_length :: Int64, 
-    parameters   :: AbstractVector{Float64},
-    accuracy     :: AbstractVector{Float64};
+    parameters   :: AbstractVector{Float64};
     no_sim       :: Int64 = 1
 )
 
@@ -58,8 +80,8 @@ function log_objective!(
         end_time            = Dates.format(batch.times[end], "HH:MM:SS") # end at the same time of the current batch
     );
 
-    # Aggregate batch
-    batch_per_minute = aggregate_L2_snapshot_eop(batch, Minute(1));
+    # Best price per minute
+    batch_best = get_batch_best(batch);
 
     # Initialise multi-threaded loop output
     accuracy_sim = zeros(no_sim);
@@ -82,20 +104,16 @@ function log_objective!(
             simulated_data.bids[is_simulated_batch, :, :],
             simulated_data.asks[is_simulated_batch, :, :]
         );
-
-        # Aggregate `simulated_batch`
-        simulated_batch_per_minute = aggregate_L2_snapshot_eop(simulated_batch, Minute(1));
         
-        # Residuals
-        bids_residuals = prod(batch_per_minute.bids, dims=3) .- prod(simulated_batch_per_minute.bids, dims=3);
-        asks_residuals = prod(batch_per_minute.asks, dims=3) .- prod(simulated_batch_per_minute.asks, dims=3);
+        # Best price per minute
+        simulated_batch_best = get_batch_best(simulated_batch);
 
         # Compute accuracy
-        accuracy_sim[i] = sum(skipmissing(bids_residuals.^2)) + sum(skipmissing(asks_residuals.^2));
+        accuracy_sim[i] = mean(skipmissing((batch_best - simulated_batch_best).^2));
     end
 
     # Take average across simulations
-    accuracy[1] = mean(accuracy_sim);
+    return mean(accuracy_sim);
 end
 
 """
@@ -113,13 +131,15 @@ function update_weights!(
     system       :: ParticleSystem
 )
 
-    # Initialise `accuracy`
-    accuracy = zeros(length(system.tolerance_abc), system.num_particles);
+    ## Deprecated code to initialise `accuracy` - I am leaving it here for ref on dimensions
+    # accuracy = zeros(length(system.tolerance_abc), system.num_particles);
 
     # Loop over each particle
-    for i=1:system.num_particles # Threads.@threads 
-        system.log_objective(batch, batch_length, view(system.particles, :, i), view(accuracy, :, i));
+    accuracy = @distributed (+) for i=1:system.num_particles
+        println(i)
+        system.log_objective(batch, batch_length, view(system.particles, :, i));
     end
+    accuracy /= system.num_particles;
 
     @infiltrate
 
@@ -192,7 +212,7 @@ function test_abides_basic(
                 DiscreteUniform(1, 200); # momentum agents
                 Gamma(5, 1)              # noise agents as no. times the sum of value and momentum agents
             ],
-            log_objective!,
+            log_objective,
             update_weights!, 
 
             # Particles and weights
