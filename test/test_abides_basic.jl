@@ -1,7 +1,7 @@
 include("../src/StaticSMC.jl");
 using AbidesMarkets, Dates, Main.StaticSMC, Suppressor;
 using Distributions, FileIO, MessyTimeSeries, Random, StaticArrays;
-using Infiltrator;
+#using Infiltrator;
 
 """
     generate_abides_simulation(build_config_kwargs::NamedTuple; nlevels::Int64=10)
@@ -134,7 +134,7 @@ function update_weights!(
     end
     accuracy /= system.num_particles;
 
-    @infiltrate
+    #@infiltrate
 
     # Aggregate accuracy
     aggregate_accuracy = accuracy[:];

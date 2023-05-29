@@ -1,7 +1,7 @@
 include("../src/StaticSMC.jl");
 using Main.StaticSMC;
 using Distances, Distributions, FileIO, MessyTimeSeries, Random, StaticArrays;
-using Infiltrator;
+#using Infiltrator;
 
 """
     log_objective!(
