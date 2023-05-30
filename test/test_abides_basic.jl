@@ -1,7 +1,7 @@
 include("../src/StaticSMC.jl");
 using AbidesMarkets, Dates, Main.StaticSMC, Suppressor;
-using Distributions, FileIO, MessyTimeSeries, Random, StaticArrays;
-#using Infiltrator;
+using Distributions, FileIO, Logging, MessyTimeSeries, Random, StaticArrays;
+using Infiltrator;
 
 """
     generate_abides_simulation(build_config_kwargs::NamedTuple; nlevels::Int64=10)
@@ -11,7 +11,7 @@ Shortcut to simulate through ABIDES.
 function generate_abides_simulation(build_config_kwargs::NamedTuple; nlevels::Int64=10)
 
     # Build runnable configuration
-    config = AbidesMarkets.build_config("rmsc04", build_config_kwargs);
+    config = AbidesMarkets.build_config("rmsc03", build_config_kwargs);
 
     # Run simulation
     end_state = AbidesMarkets.run(config);
@@ -62,14 +62,18 @@ function log_objective(
 
     # Number of agents
     num_value_agents    = floor(Int64, get_bounded_logit(parameters[1], 0.0, 201.0));
-    num_momentum_agents = floor(Int64, get_bounded_logit(parameters[2], 0.0, 201.0));
-    num_noise_agents    = floor(Int64, get_bounded_logit(parameters[3], 399.0, 2001.0));
+    num_momentum_agents = floor(Int64, get_bounded_logit(parameters[2], 0.0, 51.0));
+    num_noise_agents    = floor(Int64, get_bounded_logit(parameters[3], 249.0, 2001.0));
     
     # Kwargs for AbidesMarkets
     build_config_kwargs = (
         num_value_agents    = num_value_agents,
         num_momentum_agents = num_momentum_agents, 
         num_noise_agents    = num_noise_agents,
+        r_bar               = 1000,
+        fund_vol            = 5e-7,
+        megashock_mean      = 10,
+        megashock_var       = 5,
         end_time            = Dates.format(batch.times[end], "HH:MM:SS") # end at the same time of the current batch
     );
 
@@ -84,9 +88,10 @@ function log_objective(
 
         # Simulate data
         local simulated_data;
-        @suppress begin
+        #@suppress begin
+        @infiltrate
             simulated_data = generate_abides_simulation(merge((seed=1000+i,), build_config_kwargs));
-        end
+        #end
 
         # Get coordinates to align `simulated_batch` with `batch`
         is_simulated_batch = simulated_data.times .>= batch.times[1];
@@ -124,16 +129,24 @@ function update_weights!(
     system       :: ParticleSystem
 )
 
+    # Initialise Logger
+    io = open("log_$(now()).txt", "w+");
+    global_logger(ConsoleLogger(io));
+
     # Initialise `accuracy`
     accuracy = zeros(length(system.tolerance_abc), system.num_particles);
+    @info("started updating weights at $(now())")
+    flush(io)
 
     # Loop over each particle
-    accuracy = Threads.@threads for i=1:system.num_particles
-        println(i)
+    accuracy = for i=1:system.num_particles #Threads.@threads
+        @info(i)
+        flush(io)
         accuracy[i] = system.log_objective(batch, batch_length, view(system.particles, :, i));
     end
     accuracy /= system.num_particles;
-
+    @info("finished evaluating log_objective at $(now())")
+    flush(io)
     #@infiltrate
 
     # Aggregate accuracy
@@ -146,9 +159,14 @@ function update_weights!(
         StaticSMC._effective_sample_size_abc_scaling,
         (system.log_weights, aggregate_accuracy)
     )
-    
+    @info("abc tolerance updated at $(now())")
+    flush(io)
+
     # Compute log weights
     system.log_weights .+= aggregate_accuracy / system.tolerance_abc;
+    @info("Current update completed at $(now())")
+    flush(io)
+    close(io)
 end
 
 """
@@ -167,14 +185,18 @@ function test_abides_basic(
         num_value_agents    = num_value_agents,
         num_momentum_agents = num_momentum_agents, 
         num_noise_agents    = num_noise_agents,
+        r_bar               = 1000,
+        fund_vol            = 5e-7,
+        megashock_mean      = 10,
+        megashock_var       = 5,
         end_time            = "16:00:00"
     );
 
     # Priors
     priors = [
         DiscreteUniform(1,    200); # no. of value agents
-        DiscreteUniform(1,    200); # no. of momentum agents
-        DiscreteUniform(400, 2000); # no. of noise agents
+        DiscreteUniform(1,    50);  # no. of momentum agents
+        DiscreteUniform(250, 2000); # no. of noise agents
     ];
 
     # Set seed for reproducibility
@@ -210,8 +232,8 @@ function test_abides_basic(
             # Particles and weights
             [
                 [get_unbounded_logit(Float64(x), 0.0, 201.0) for x in rand(priors[1], num_particles)]'    # no. of value agents
-                [get_unbounded_logit(Float64(x), 0.0, 201.0) for x in rand(priors[2], num_particles)]'    # no. of momentum agents
-                [get_unbounded_logit(Float64(x), 399.0, 2001.0) for x in rand(priors[3], num_particles)]' # no. of noise agents
+                [get_unbounded_logit(Float64(x), 0.0, 51.0) for x in rand(priors[2], num_particles)]'     # no. of momentum agents
+                [get_unbounded_logit(Float64(x), 249.0, 2001.0) for x in rand(priors[3], num_particles)]' # no. of noise agents
             ],
             log.(ones(num_particles) / num_particles),
             ones(num_particles) / num_particles,
@@ -223,7 +245,7 @@ function test_abides_basic(
             0.1
         );
         
-        StaticSMC.sample!(y_i, fld(N_i, 10), system);
+        StaticSMC.sample!(y_i, fld(N_i, 5), system);
         push!(simulations_output, system);
     end
 
