@@ -1,7 +1,7 @@
 include("../src/StaticSMC.jl");
 using AbidesMarkets, Dates, Main.StaticSMC, Suppressor;
 using Distributions, FileIO, Logging, MessyTimeSeries, Random, StaticArrays;
-using Infiltrator;
+#using Infiltrator;
 
 """
     generate_abides_simulation(build_config_kwargs::NamedTuple; nlevels::Int64=10)
@@ -94,11 +94,11 @@ function log_objective(
 
         # Simulate data
         local simulated_data;
-        #@suppress begin
-        @infiltrate
+        @suppress begin
+        #@infiltrate
             simulated_data = generate_abides_simulation(merge((seed=1000+i,), build_config_kwargs));
-        #end
-
+        end
+        
         # Get coordinates to align `simulated_batch` with `batch`
         is_simulated_batch = simulated_data.times .>= batch.times[1];
 
