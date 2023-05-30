@@ -67,13 +67,18 @@ function log_objective(
     
     # Kwargs for AbidesMarkets
     build_config_kwargs = (
+        # Number of agents
         num_value_agents    = num_value_agents,
         num_momentum_agents = num_momentum_agents, 
         num_noise_agents    = num_noise_agents,
-        r_bar               = 1000,
-        fund_vol            = 5e-7,
-        megashock_mean      = 10,
-        megashock_var       = 5,
+        # Fundamental/oracle
+        fund_r_bar          = 100_000,
+        fund_vol            = 1e-3,
+        fund_megashock_mean = 1000,
+        fund_megashock_var  = 50_000,
+        # Value agent
+        val_r_bar           = 100_000,
+        val_vol             = 1e-8,
         end_time            = Dates.format(batch.times[end], "HH:MM:SS") # end at the same time of the current batch
     );
 
@@ -182,13 +187,18 @@ function test_abides_basic(
 
     # Kwargs for AbidesMarkets
     build_config_kwargs = (
+        # Number of agents
         num_value_agents    = num_value_agents,
         num_momentum_agents = num_momentum_agents, 
         num_noise_agents    = num_noise_agents,
-        r_bar               = 1000,
-        fund_vol            = 5e-7,
-        megashock_mean      = 10,
-        megashock_var       = 5,
+        # Fundamental/oracle
+        fund_r_bar          = 100_000,
+        fund_vol            = 1e-3,
+        fund_megashock_mean = 1000,
+        fund_megashock_var  = 50_000,
+        # Value agent
+        val_r_bar           = 100_000,
+        val_vol             = 1e-8,
         end_time            = "16:00:00"
     );
 
