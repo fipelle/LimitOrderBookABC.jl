@@ -121,60 +121,60 @@ using Distributed
         # Take average across simulations
         return mean(accuracy_sim);
     end
-end
 
-"""
-    update_weights!(
+    """
+        update_weights!(
+            batch        :: SnapshotL2,
+            batch_length :: Int64, 
+            system       :: ParticleSystem
+        )
+
+    Update weights within ibis iteration.
+    """
+    function update_weights!(
         batch        :: SnapshotL2,
         batch_length :: Int64, 
         system       :: ParticleSystem
     )
 
-Update weights within ibis iteration.
-"""
-function update_weights!(
-    batch        :: SnapshotL2,
-    batch_length :: Int64, 
-    system       :: ParticleSystem
-)
+        # Initialise Logger
+        io = open("log_$(now()).txt", "w+");
+        global_logger(ConsoleLogger(io));
 
-    # Initialise Logger
-    io = open("log_$(now()).txt", "w+");
-    global_logger(ConsoleLogger(io));
-
-    # Initialise `io`
-    @info("started updating weights at $(now())")
-    flush(io)
-
-    # Loop over each particle
-    accuracy = @distributed (+) for i=1:system.num_particles
-        @info(i)
+        # Initialise `io`
+        @info("started updating weights at $(now())")
         flush(io)
-        system.log_objective(batch, batch_length, view(system.particles, :, i));
+
+        # Loop over each particle
+        accuracy = @distributed (+) for i=1:system.num_particles
+            @info(i)
+            flush(io)
+            system.log_objective(batch, batch_length, view(system.particles, :, i));
+        end
+        accuracy /= system.num_particles;
+        @info("finished evaluating log_objective at $(now())")
+        flush(io)
+        #@infiltrate
+
+        # Aggregate accuracy
+        aggregate_accuracy = accuracy[:];
+
+        system.tolerance_abc = StaticSMC._find_best_tuning(
+            system.num_particles / 2 + 1,
+            system.num_particles / 10,
+            MVector(500.0, 250.5, 1.0),
+            StaticSMC._effective_sample_size_abc_scaling,
+            (system.log_weights, aggregate_accuracy)
+        )
+        @info("abc tolerance updated at $(now())")
+        flush(io)
+
+        # Compute log weights
+        system.log_weights .+= aggregate_accuracy / system.tolerance_abc;
+        @info("Current update completed at $(now())")
+        flush(io)
+        close(io)
     end
-    accuracy /= system.num_particles;
-    @info("finished evaluating log_objective at $(now())")
-    flush(io)
-    #@infiltrate
-
-    # Aggregate accuracy
-    aggregate_accuracy = accuracy[:];
-
-    system.tolerance_abc = StaticSMC._find_best_tuning(
-        system.num_particles / 2 + 1,
-        system.num_particles / 10,
-        MVector(500.0, 250.5, 1.0),
-        StaticSMC._effective_sample_size_abc_scaling,
-        (system.log_weights, aggregate_accuracy)
-    )
-    @info("abc tolerance updated at $(now())")
-    flush(io)
-
-    # Compute log weights
-    system.log_weights .+= aggregate_accuracy / system.tolerance_abc;
-    @info("Current update completed at $(now())")
-    flush(io)
-    close(io)
 end
 
 """
