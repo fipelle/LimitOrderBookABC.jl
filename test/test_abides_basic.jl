@@ -11,7 +11,7 @@ Shortcut to simulate through ABIDES.
 function generate_abides_simulation(build_config_kwargs::NamedTuple; nlevels::Int64=10)
 
     # Build runnable configuration
-    config = AbidesMarkets.build_config("rmsc03", build_config_kwargs);
+    config = AbidesMarkets.build_config("rmsc04", build_config_kwargs);
 
     # Run simulation
     end_state = AbidesMarkets.run(config);
@@ -68,18 +68,19 @@ function log_objective(
     # Kwargs for AbidesMarkets
     build_config_kwargs = (
         # Number of agents
-        num_value_agents    = num_value_agents,
-        num_momentum_agents = num_momentum_agents, 
-        num_noise_agents    = num_noise_agents,
+        num_value_agents     = num_value_agents,
+        num_momentum_agents  = num_momentum_agents, 
+        num_noise_agents     = num_noise_agents,
         # Fundamental/oracle
-        fund_r_bar          = 100_000,
-        fund_vol            = 1e-3,
-        fund_megashock_mean = 1000,
-        fund_megashock_var  = 50_000,
-        # Value agent
-        val_r_bar           = 100_000,
-        val_vol             = 1e-8,
-        end_time            = Dates.format(batch.times[end], "HH:MM:SS") # end at the same time of the current batch
+        r_bar                = 100_000,
+        fund_vol             = 1e-3,
+        megashock_mean       = 1000,
+        megashock_var        = 50_000,
+        # Market makers
+        mm_wake_up_freq      = "10S",
+        mm_backstop_quantity = 50_000,
+        # Others
+        end_time             = Dates.format(batch.times[end], "HH:MM:SS") # end at the same time of the current batch
     );
 
     # Best price per minute
@@ -188,18 +189,19 @@ function test_abides_basic(
     # Kwargs for AbidesMarkets
     build_config_kwargs = (
         # Number of agents
-        num_value_agents    = num_value_agents,
-        num_momentum_agents = num_momentum_agents, 
-        num_noise_agents    = num_noise_agents,
+        num_value_agents     = num_value_agents,
+        num_momentum_agents  = num_momentum_agents, 
+        num_noise_agents     = num_noise_agents,
         # Fundamental/oracle
-        fund_r_bar          = 100_000,
-        fund_vol            = 1e-3,
-        fund_megashock_mean = 1000,
-        fund_megashock_var  = 50_000,
-        # Value agent
-        val_r_bar           = 100_000,
-        val_vol             = 1e-8,
-        end_time            = "16:00:00"
+        r_bar                = 100_000,
+        fund_vol             = 1e-3,
+        megashock_mean       = 1000,
+        megashock_var        = 50_000,
+        # Market makers
+        mm_wake_up_freq      = "10S",
+        mm_backstop_quantity = 50_000,
+        # Others
+        end_time             = "16:00:00"
     );
 
     # Priors
