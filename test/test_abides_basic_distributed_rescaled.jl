@@ -74,10 +74,10 @@ using Distributed
             num_momentum_agents  = num_momentum_agents, 
             num_noise_agents     = num_noise_agents,
             # Fundamental/oracle
-            r_bar                = 100_000,
-            fund_vol             = 1e-3,
-            megashock_mean       = 1000,
-            megashock_var        = 50_000,
+            r_bar                = 1_000,
+            fund_vol             = 1e-5,
+            megashock_mean       = 10,
+            megashock_var        = 5,
             # Market makers
             mm_wake_up_freq      = "10S",
             mm_backstop_quantity = 50_000,
@@ -197,10 +197,10 @@ function test_abides_basic(
         num_momentum_agents  = num_momentum_agents, 
         num_noise_agents     = num_noise_agents,
         # Fundamental/oracle
-        r_bar                = 100_000,
-        fund_vol             = 1e-3,
-        megashock_mean       = 1000,
-        megashock_var        = 50_000,
+        r_bar                = 1_000,
+        fund_vol             = 1e-5,
+        megashock_mean       = 10,
+        megashock_var        = 5,
         # Market makers
         mm_wake_up_freq      = "10S",
         mm_backstop_quantity = 50_000,
