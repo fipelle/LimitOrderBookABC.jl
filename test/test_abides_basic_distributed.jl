@@ -146,11 +146,13 @@ function update_weights!(
     @info("started updating weights at $(now())")
     flush(io)
 
+    # Extract the entries of `system` required to compute `log_objective`
+    system_log_objective = system.log_objective;
+    system_particles = system.particles;
+
     # Loop over each particle
     accuracy = @distributed (+) for i=1:system.num_particles
-        @info(i)
-        flush(io)
-        system.log_objective(batch, batch_length, view(system.particles, :, i));
+        system_log_objective(batch, batch_length, view(system_particles, :, i));
     end
     accuracy /= system.num_particles;
     @info("finished evaluating log_objective at $(now())")
