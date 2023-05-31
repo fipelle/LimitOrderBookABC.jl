@@ -1,123 +1,126 @@
-include("../src/StaticSMC.jl");
-using AbidesMarkets, Dates, Main.StaticSMC, Suppressor;
-using Distributions, FileIO, Logging, MessyTimeSeries, Random, StaticArrays;
-#using Infiltrator;
+using Distributed
+@everywhere include("../src/StaticSMC.jl");
+@everywhere using AbidesMarkets, Dates, Main.StaticSMC, Suppressor;
+@everywhere using Distributions, FileIO, Logging, MessyTimeSeries, Random, StaticArrays;
 
-"""
-    generate_abides_simulation(build_config_kwargs::NamedTuple; nlevels::Int64=10)
+@everywhere begin
 
-Shortcut to simulate through ABIDES.
-"""
-function generate_abides_simulation(build_config_kwargs::NamedTuple; nlevels::Int64=10)
+    """
+        generate_abides_simulation(build_config_kwargs::NamedTuple; nlevels::Int64=10)
 
-    # Build runnable configuration
-    config = AbidesMarkets.build_config("rmsc04", build_config_kwargs);
+    Shortcut to simulate through ABIDES.
+    """
+    function generate_abides_simulation(build_config_kwargs::NamedTuple; nlevels::Int64=10)
 
-    # Run simulation
-    end_state = AbidesMarkets.run(config);
+        # Build runnable configuration
+        config = AbidesMarkets.build_config("rmsc04", build_config_kwargs);
 
-    # Retrieving results from `end_state`
-    order_book = end_state["agents"][1].order_books["ABM"]; # Julia starts indexing from 1, not 0
+        # Run simulation
+        end_state = AbidesMarkets.run(config);
 
-    # Return L2 snapshots
-    return AbidesMarkets.get_L2_snapshots(order_book, nlevels);
-end
+        # Retrieving results from `end_state`
+        order_book = end_state["agents"][1].order_books["ABM"]; # Julia starts indexing from 1, not 0
 
-"""
-    get_batch_best(batch::SnapshotL2)
+        # Return L2 snapshots
+        return AbidesMarkets.get_L2_snapshots(order_book, nlevels);
+    end
 
-Get best price from L2 snapshot.
-"""
-function get_batch_best(batch::SnapshotL2)
-    
-    # Aggregate batch
-    batch_per_minute = aggregate_L2_snapshot_eop(batch, Minute(1));
+    """
+        get_batch_best(batch::SnapshotL2)
 
-    # Best price per minute
-    batch_L1_bids = view(batch_per_minute.bids, :, 1, :);
-    batch_L1_asks = view(batch_per_minute.asks, :, 1, :);
-    batch_best = prod(batch_L1_bids, dims=2) + prod(batch_L1_asks, dims=2);
-    batch_best ./= view(batch_L1_bids, :, 2) + view(batch_L1_asks, :, 2);
+    Get best price from L2 snapshot.
+    """
+    function get_batch_best(batch::SnapshotL2)
+        
+        # Aggregate batch
+        batch_per_minute = aggregate_L2_snapshot_eop(batch, Minute(1));
 
-    # Return best price per minute
-    return batch_best;
-end
+        # Best price per minute
+        batch_L1_bids = view(batch_per_minute.bids, :, 1, :);
+        batch_L1_asks = view(batch_per_minute.asks, :, 1, :);
+        batch_best = prod(batch_L1_bids, dims=2) + prod(batch_L1_asks, dims=2);
+        batch_best ./= view(batch_L1_bids, :, 2) + view(batch_L1_asks, :, 2);
 
-"""
-    log_objective(
+        # Return best price per minute
+        return batch_best;
+    end
+
+    """
+        log_objective(
+            batch        :: SnapshotL2,
+            batch_length :: Int64, 
+            parameters   :: AbstractVector{Float64};
+            no_sim       :: Int64 = 1
+        )
+
+    Compute the log-objective.
+    """
+    function log_objective(
         batch        :: SnapshotL2,
         batch_length :: Int64, 
         parameters   :: AbstractVector{Float64};
         no_sim       :: Int64 = 1
     )
 
-Compute the log-objective.
-"""
-function log_objective(
-    batch        :: SnapshotL2,
-    batch_length :: Int64, 
-    parameters   :: AbstractVector{Float64};
-    no_sim       :: Int64 = 1
-)
-
-    # Number of agents
-    num_value_agents    = floor(Int64, get_bounded_logit(parameters[1], 0.0, 201.0));
-    num_momentum_agents = floor(Int64, get_bounded_logit(parameters[2], 0.0, 51.0));
-    num_noise_agents    = floor(Int64, get_bounded_logit(parameters[3], 249.0, 2001.0));
-    
-    # Kwargs for AbidesMarkets
-    build_config_kwargs = (
         # Number of agents
-        num_value_agents     = num_value_agents,
-        num_momentum_agents  = num_momentum_agents, 
-        num_noise_agents     = num_noise_agents,
-        # Fundamental/oracle
-        r_bar                = 100_000,
-        fund_vol             = 1e-3,
-        megashock_mean       = 1000,
-        megashock_var        = 50_000,
-        # Market makers
-        mm_wake_up_freq      = "10S",
-        mm_backstop_quantity = 50_000,
-        # Others
-        end_time             = Dates.format(batch.times[end], "HH:MM:SS") # end at the same time of the current batch
-    );
-
-    # Best price per minute
-    batch_best = get_batch_best(batch);
-
-    # Initialise multi-threaded loop output
-    accuracy_sim = zeros(no_sim);
-
-    # Loop over `no_sim`
-    for i=1:no_sim
-
-        # Simulate data
-        local simulated_data;
-        @suppress begin
-        #@infiltrate
-            simulated_data = generate_abides_simulation(merge((seed=1000+i,), build_config_kwargs));
-        end
+        num_value_agents    = floor(Int64, get_bounded_logit(parameters[1], 0.0, 201.0));
+        num_momentum_agents = floor(Int64, get_bounded_logit(parameters[2], 0.0, 51.0));
+        num_noise_agents    = floor(Int64, get_bounded_logit(parameters[3], 249.0, 2001.0));
         
-        # Get coordinates to align `simulated_batch` with `batch`
-        is_simulated_batch = simulated_data.times .>= batch.times[1];
-
-        # Get `simulated_batch`
-        simulated_batch = SnapshotL2(
-            simulated_data.times[is_simulated_batch],
-            simulated_data.bids[is_simulated_batch, :, :],
-            simulated_data.asks[is_simulated_batch, :, :]
+        # Kwargs for AbidesMarkets
+        build_config_kwargs = (
+            # Number of agents
+            num_value_agents     = num_value_agents,
+            num_momentum_agents  = num_momentum_agents, 
+            num_noise_agents     = num_noise_agents,
+            # Fundamental/oracle
+            r_bar                = 100_000,
+            fund_vol             = 1e-3,
+            megashock_mean       = 1000,
+            megashock_var        = 50_000,
+            # Market makers
+            mm_wake_up_freq      = "10S",
+            mm_backstop_quantity = 50_000,
+            # Others
+            end_time             = Dates.format(batch.times[end], "HH:MM:SS") # end at the same time of the current batch
         );
-        
+
         # Best price per minute
-        simulated_batch_best = get_batch_best(simulated_batch);
+        batch_best = get_batch_best(batch);
 
-        # Compute accuracy
-        accuracy_sim[i] = mean(skipmissing((batch_best - simulated_batch_best).^2));
+        # Initialise multi-threaded loop output
+        accuracy_sim = zeros(no_sim);
+
+        # Loop over `no_sim`
+        for i=1:no_sim
+
+            # Simulate data
+            local simulated_data;
+            @suppress begin
+            #@infiltrate
+                simulated_data = generate_abides_simulation(merge((seed=1000+i,), build_config_kwargs));
+            end
+            
+            # Get coordinates to align `simulated_batch` with `batch`
+            is_simulated_batch = simulated_data.times .>= batch.times[1];
+
+            # Get `simulated_batch`
+            simulated_batch = SnapshotL2(
+                simulated_data.times[is_simulated_batch],
+                simulated_data.bids[is_simulated_batch, :, :],
+                simulated_data.asks[is_simulated_batch, :, :]
+            );
+            
+            # Best price per minute
+            simulated_batch_best = get_batch_best(simulated_batch);
+
+            # Compute accuracy
+            accuracy_sim[i] = mean(skipmissing((batch_best - simulated_batch_best).^2));
+        end
+
+        # Take average across simulations
+        return mean(accuracy_sim);
     end
-
-    # Take average across simulations
-    return mean(accuracy_sim);
 end
 
 """
@@ -139,16 +142,17 @@ function update_weights!(
     io = open("log_$(now()).txt", "w+");
     global_logger(ConsoleLogger(io));
 
-    # Initialise `accuracy`
-    accuracy = zeros(length(system.tolerance_abc), system.num_particles);
+    # Initialise `io`
     @info("started updating weights at $(now())")
     flush(io)
 
+    # Extract the entries of `system` required to compute `log_objective`
+    system_log_objective = system.log_objective;
+    system_particles = system.particles;
+
     # Loop over each particle
-    accuracy = for i=1:system.num_particles #Threads.@threads
-        @info(i)
-        flush(io)
-        accuracy[i] = system.log_objective(batch, batch_length, view(system.particles, :, i));
+    accuracy = @distributed (+) for i=1:system.num_particles
+        system_log_objective(batch, batch_length, view(system_particles, :, i));
     end
     accuracy /= system.num_particles;
     @info("finished evaluating log_objective at $(now())")
