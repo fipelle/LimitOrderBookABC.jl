@@ -64,9 +64,9 @@ using Distributed
     )
 
         # Number of agents
-        num_value_agents    = floor(Int64, get_bounded_logit(parameters[1], priors[1].a, priors[1].b));
-        num_momentum_agents = floor(Int64, get_bounded_logit(parameters[2], priors[2].a, priors[2].b));
-        num_noise_agents    = floor(Int64, get_bounded_logit(parameters[3], priors[3].a, priors[3].b));
+        num_value_agents    = floor(Int64, get_bounded_logit(parameters[1], priors[1].a-1, priors[1].b+1));
+        num_momentum_agents = floor(Int64, get_bounded_logit(parameters[2], priors[2].a-1, priors[2].b+1));
+        num_noise_agents    = floor(Int64, get_bounded_logit(parameters[3], priors[3].a-1, priors[3].b+1));
         
         # Kwargs for AbidesMarkets
         build_config_kwargs = (
