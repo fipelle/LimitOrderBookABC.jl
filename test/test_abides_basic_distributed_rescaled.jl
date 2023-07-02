@@ -64,9 +64,9 @@ using Distributed
     )
 
         # Number of agents
-        num_value_agents    = floor(Int64, get_bounded_logit(parameters[1], priors[1].a-1, priors[1].b+1));
-        num_momentum_agents = floor(Int64, get_bounded_logit(parameters[2], priors[2].a-1, priors[2].b+1));
-        num_noise_agents    = floor(Int64, get_bounded_logit(parameters[3], priors[3].a-1, priors[3].b+1));
+        num_value_agents    = floor(Int64, get_bounded_logit(parameters[1], priors[1].a-1.0, priors[1].b+1.0));
+        num_momentum_agents = floor(Int64, get_bounded_logit(parameters[2], priors[2].a-1.0, priors[2].b+1.0));
+        num_noise_agents    = floor(Int64, get_bounded_logit(parameters[3], priors[3].a-1.0, priors[3].b+1.0));
         
         # Kwargs for AbidesMarkets
         build_config_kwargs = (
@@ -256,9 +256,9 @@ function test_abides_basic(
 
             # Particles and weights
             [
-                [get_unbounded_logit(Float64(x), priors_bounds[1][1], priors_bounds[1][2]) for x in rand(priors[1], num_particles)]' # no. of value agents
-                [get_unbounded_logit(Float64(x), priors_bounds[2][1], priors_bounds[2][2]) for x in rand(priors[2], num_particles)]' # no. of momentum agents
-                [get_unbounded_logit(Float64(x), priors_bounds[3][1], priors_bounds[3][2]) for x in rand(priors[3], num_particles)]' # no. of noise agents
+                [get_unbounded_logit(Float64(x), Float64(priors_bounds[1][1]), Float64(priors_bounds[1][2])) for x in rand(priors[1], num_particles)]' # no. of value agents
+                [get_unbounded_logit(Float64(x), Float64(priors_bounds[2][1]), Float64(priors_bounds[2][2])) for x in rand(priors[2], num_particles)]' # no. of momentum agents
+                [get_unbounded_logit(Float64(x), Float64(priors_bounds[3][1]), Float64(priors_bounds[3][2])) for x in rand(priors[3], num_particles)]' # no. of noise agents
             ],
             log.(ones(num_particles) / num_particles),
             ones(num_particles) / num_particles,
