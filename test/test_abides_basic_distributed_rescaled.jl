@@ -58,14 +58,15 @@ using Distributed
     function log_objective(
         batch        :: SnapshotL2,
         batch_length :: Int64, 
+        priors       :: Vector{Distribution},
         parameters   :: AbstractVector{Float64};
         no_sim       :: Int64 = 1
     )
 
         # Number of agents
-        num_value_agents    = floor(Int64, get_bounded_logit(parameters[1], 0.0, 201.0));
-        num_momentum_agents = floor(Int64, get_bounded_logit(parameters[2], 0.0, 51.0));
-        num_noise_agents    = floor(Int64, get_bounded_logit(parameters[3], 249.0, 2001.0));
+        num_value_agents    = floor(Int64, get_bounded_logit(parameters[1], priors[1].a, priors[1].b));
+        num_momentum_agents = floor(Int64, get_bounded_logit(parameters[2], priors[2].a, priors[2].b));
+        num_noise_agents    = floor(Int64, get_bounded_logit(parameters[3], priors[3].a, priors[3].b));
         
         # Kwargs for AbidesMarkets
         build_config_kwargs = (
@@ -115,7 +116,7 @@ using Distributed
             simulated_batch_best = get_batch_best(simulated_batch);
 
             # Compute accuracy
-            accuracy_sim[i] = mean(skipmissing((batch_best - simulated_batch_best).^2));
+            accuracy_sim[i] = (mean(skipmissing(batch_best)) - mean(skipmissing(simulated_batch_best)))^2;
         end
 
         # Take average across simulations
@@ -149,10 +150,11 @@ function update_weights!(
     # Extract the entries of `system` required to compute `log_objective`
     system_log_objective = system.log_objective;
     system_particles = system.particles;
+    system_priors = system.priors;
 
     # Loop over each particle
     accuracy = @distributed (+) for i=1:system.num_particles
-        system_log_objective(batch, batch_length, view(system_particles, :, i));
+        system_log_objective(batch, batch_length, system_priors, view(system_particles, :, i));
     end
     accuracy /= system.num_particles;
     @info("finished evaluating log_objective at $(now())")
@@ -208,11 +210,18 @@ function test_abides_basic(
         end_time             = "16:00:00"
     );
 
+    # Handy list
+    priors_bounds = [
+        (50,   200);
+        (1,     50);
+        (250, 2000)
+    ];
+    
     # Priors
     priors = [
-        DiscreteUniform(1,    200); # no. of value agents
-        DiscreteUniform(1,    50);  # no. of momentum agents
-        DiscreteUniform(250, 2000); # no. of noise agents
+        DiscreteUniform(priors_bounds[1][1]+1, priors_bounds[1][2]-1); # no. of value agents
+        DiscreteUniform(priors_bounds[2][1]+1, priors_bounds[2][2]-1); # no. of momentum agents
+        DiscreteUniform(priors_bounds[3][1]+1, priors_bounds[3][2]-1); # no. of noise agents
     ];
 
     # Set seed for reproducibility
@@ -247,9 +256,9 @@ function test_abides_basic(
 
             # Particles and weights
             [
-                [get_unbounded_logit(Float64(x), 0.0, 201.0) for x in rand(priors[1], num_particles)]'    # no. of value agents
-                [get_unbounded_logit(Float64(x), 0.0, 51.0) for x in rand(priors[2], num_particles)]'     # no. of momentum agents
-                [get_unbounded_logit(Float64(x), 249.0, 2001.0) for x in rand(priors[3], num_particles)]' # no. of noise agents
+                [get_unbounded_logit(Float64(x), priors_bounds[1][1], priors_bounds[1][2]) for x in rand(priors[1], num_particles)]' # no. of value agents
+                [get_unbounded_logit(Float64(x), priors_bounds[2][1], priors_bounds[2][2]) for x in rand(priors[2], num_particles)]' # no. of momentum agents
+                [get_unbounded_logit(Float64(x), priors_bounds[3][1], priors_bounds[3][2]) for x in rand(priors[3], num_particles)]' # no. of noise agents
             ],
             log.(ones(num_particles) / num_particles),
             ones(num_particles) / num_particles,
