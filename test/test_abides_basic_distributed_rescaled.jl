@@ -162,7 +162,7 @@ function update_weights!(
     #@infiltrate
 
     # Aggregate accuracy
-    aggregate_accuracy = accuracy[:];
+    aggregate_accuracy = [accuracy];
 
     system.tolerance_abc = StaticSMC._find_best_tuning(
         system.num_particles / 2 + 1,
