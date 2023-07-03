@@ -153,27 +153,23 @@ function update_weights!(
     system_priors = system.priors;
 
     # Loop over each particle
-    accuracy = @distributed (+) for i=1:system.num_particles
-        system_log_objective(batch, batch_length, system_priors, view(system_particles, :, i));
+    aggregate_accuracy_shared = SharedArray{Float64}(system.num_particles);
+    @distributed for i=1:system.num_particles
+        aggregate_accuracy_shared[i] = system_log_objective(batch, batch_length, system_priors, view(system_particles, :, i));
     end
-    accuracy /= system.num_particles;
     @info("finished evaluating log_objective at $(now())")
     flush(io)
-    #@infiltrate
-
-    # Aggregate accuracy
-    aggregate_accuracy = [accuracy];
-
+        
     system.tolerance_abc = StaticSMC._find_best_tuning(
         system.num_particles / 2 + 1,
         system.num_particles / 10,
         MVector(500.0, 250.5, 1.0),
         StaticSMC._effective_sample_size_abc_scaling,
-        (system.log_weights, aggregate_accuracy)
+        (system.log_weights, convert(Array{Float64}, aggregate_accuracy))
     )
     @info("abc tolerance updated at $(now())")
     flush(io)
-
+    
     # Compute log weights
     system.log_weights .+= aggregate_accuracy / system.tolerance_abc;
     @info("Current update completed at $(now())")
